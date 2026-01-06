@@ -1,0 +1,10 @@
+// ... existing code ...
+
+builder.Services.AddAuthorization();
+
+// Registrar el servicio de generación de PDFs
+builder.Services.AddScoped<IPdfService, PdfService>();
+
+// ... existing code ...
+
+

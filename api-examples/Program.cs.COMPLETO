@@ -1,0 +1,85 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddControllers();
+
+// Configurar CORS para permitir peticiones desde el frontend Vue.js
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowVueApp", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:9000",      // Puerto por defecto de Quasar en desarrollo
+                "http://localhost:8080",      // Puerto alternativo de Vue
+                "https://localhost:9000",     // HTTPS en desarrollo
+                "https://localhost:8080"      // HTTPS alternativo
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
+// Configurar autenticación JWT
+var secretKey = builder.Configuration["Jwt:SecretKey"] 
+    ?? "MiClaveSecretaSuperSeguraParaJWT12345678901234567890"; // Clave temporal por defecto
+    
+var issuer = builder.Configuration["Jwt:Issuer"] ?? "miapi.com";
+var audience = builder.Configuration["Jwt:Audience"] ?? "miapi.com";
+var key = Encoding.UTF8.GetBytes(secretKey);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = builder.Environment.IsProduction();
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = issuer,
+        ValidateAudience = true,
+        ValidAudience = audience,
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero // Eliminar la tolerancia de tiempo para tokens expirados
+    };
+});
+
+builder.Services.AddAuthorization();
+
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+// IMPORTANTE: El orden de estos middlewares es CRÍTICO
+// CORS debe ir antes de Authentication y Authorization
+app.UseCors("AllowVueApp");
+
+app.UseHttpsRedirection();
+
+// Habilitar autenticación y autorización
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
+
