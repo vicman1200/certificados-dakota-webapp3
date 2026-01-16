@@ -38,40 +38,30 @@
 
         <q-space />
 
-        <!-- Información del usuario -->
-        <div v-if="userInfo" class="user-info q-mr-md">
-          <q-btn
-            v-if="puedeDarAltaUsuarios"
-            flat
-            dense
-            no-caps
-            class="text-body2 text-weight-medium q-pa-none q-ma-none"
-            style="text-transform: none; color: #ff8000;"
-          >
-            {{ userInfo.nombre || userInfo.usuario }}
-            <q-icon name="arrow_drop_down" class="q-ml-xs" />
-            <q-menu>
-              <q-list style="min-width: 200px">
-                <q-item clickable v-close-popup @click="navegarAUsuarios">
-                  <q-item-section avatar>
-                    <q-icon name="people" />
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label>Gestionar Usuarios</q-item-label>
-                    <q-item-label caption>Ver y administrar usuarios</q-item-label>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </q-menu>
-          </q-btn>
-          <div 
-            v-else
-            class="text-body2 text-white text-weight-medium"
-          >
-            {{ userInfo.nombre || userInfo.usuario }}
+        <!-- Información del usuario y agencia -->
+        <div v-if="userInfo" class="user-info q-mr-md column">
+          <div class="row items-center q-gutter-sm">
+            <div 
+              class="text-body2 text-white text-weight-medium cursor-pointer usuario-link"
+              @click="abrirDialogUsuarioInfo"
+            >
+              {{ userInfo.nombre || userInfo.usuario }}
+            </div>
           </div>
-          <div class="text-caption text-grey-4">
-            {{ userInfo.email || '' }}
+          <!-- Información de la agencia seleccionada -->
+          <div 
+            v-if="agenciaSeleccionada" 
+            class="text-caption text-primary text-weight-bold row items-center q-gutter-xs q-mt-xs cursor-pointer agencia-link"
+            @click="abrirDialogAgencia"
+          >
+            <q-icon name="business" size="14px" />
+            <span>{{ agenciaSeleccionada.agencia || '' }}</span>
+            <span v-if="agenciaSeleccionada.entidadFederativa">
+              - {{ agenciaSeleccionada.entidadFederativa }}
+            </span>
+            <span v-if="agenciaSeleccionada.division">
+              ({{ agenciaSeleccionada.division }})
+            </span>
           </div>
         </div>
 
@@ -278,6 +268,183 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Dialog para selección de agencia -->
+    <q-dialog v-model="dialogAgenciaOpen" persistent>
+      <q-card style="min-width: 600px; max-width: 800px;">
+        <q-banner dense class="bg-black q-pa-md">
+          <div class="row items-center justify-between full-width">
+            <div class="text-h6 text-primary">Seleccionar Agencia</div>
+            <q-btn
+              v-if="mostrarBotonCerrar"
+              flat
+              dense
+              round
+              size="sm"
+              icon="close"
+              color="white"
+              text-color="white"
+              @click="dialogAgenciaOpen = false"
+            />
+          </div>
+        </q-banner>
+
+        <q-card-section>
+          <div class="text-subtitle2 text-grey-7">
+            Por favor, selecciona una agencia para continuar
+          </div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="filtroAgencia"
+            outlined
+            dense
+            debounce="300"
+            placeholder="Buscar agencia..."
+            class="q-mb-md"
+            autofocus
+          >
+            <template v-slot:prepend>
+              <q-icon name="search" />
+            </template>
+            <template v-slot:append v-if="filtroAgencia">
+              <q-icon
+                name="clear"
+                class="cursor-pointer"
+                @click="filtroAgencia = ''"
+              />
+            </template>
+          </q-input>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none" style="max-height: 60vh; overflow-y: auto;">
+          <q-list separator>
+            <q-item
+              v-for="(agencia, index) in agenciasFiltradas"
+              :key="index"
+              clickable
+              v-ripple
+              @click="seleccionarAgencia(agencia)"
+              class="q-pa-sm q-mb-sm"
+              style="border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px;"
+            >
+              <q-item-section>
+                <q-item-label class="text-weight-medium text-body2">
+                  {{ agencia.agencia || 'N/A' }}
+                </q-item-label>
+                <q-item-label caption class="q-mt-xs text-caption">
+                  <div class="column q-gutter-xs">
+                    <div v-if="agencia.bbvaAgenciaId" class="row items-center">
+                      <q-icon name="tag" size="12px" class="q-mr-xs" />
+                      <span class="text-weight-medium">Agencia ID:</span>
+                      <span class="q-ml-xs">{{ agencia.bbvaAgenciaId }}</span>
+                    </div>
+                    <div v-if="agencia.entidadFederativa" class="row items-center">
+                      <q-icon name="location_on" size="12px" class="q-mr-xs" />
+                      <span class="text-weight-medium">Estado:</span>
+                      <span class="q-ml-xs">{{ agencia.entidadFederativa }}</span>
+                    </div>
+                    <div v-if="agencia.division" class="row items-center">
+                      <q-icon name="business" size="12px" class="q-mr-xs" />
+                      <span class="text-weight-medium">División:</span>
+                      <span class="q-ml-xs">{{ agencia.division }}</span>
+                    </div>
+                  </div>
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-icon name="chevron_right" color="primary" size="20px" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-if="agenciasFiltradas.length === 0" class="text-center text-grey-6 q-pa-md">
+            No se encontraron agencias
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Dialog para información del usuario -->
+    <q-dialog v-model="dialogUsuarioInfo" persistent>
+      <q-card style="min-width: 400px; max-width: 450px;">
+        <q-banner dense class="bg-black q-pa-md">
+          <div class="row items-center justify-between full-width">
+            <div class="text-h6 text-primary">Información del Usuario</div>
+            <q-btn
+              flat
+              dense
+              round
+              size="sm"
+              icon="close"
+              color="white"
+              text-color="white"
+              @click="dialogUsuarioInfo = false"
+            />
+          </div>
+        </q-banner>
+
+        <q-card-section dense class="q-pt-sm">
+          <div class="column q-gutter-sm">
+            <div class="row items-center q-gutter-xs">
+              <q-icon name="person" color="primary" size="18px" />
+              <div class="column">
+                <div class="text-caption text-grey-7">Usuario</div>
+                <div class="text-body2 text-weight-medium">
+                  {{ userInfo?.usuario || 'N/A' }}
+                </div>
+              </div>
+            </div>
+
+            <q-separator dense />
+
+            <div class="row items-center q-gutter-xs">
+              <q-icon name="badge" color="primary" size="18px" />
+              <div class="column">
+                <div class="text-caption text-grey-7">Nombre</div>
+                <div class="text-body2 text-weight-medium">
+                  {{ userInfo?.nombre || 'N/A' }}
+                </div>
+              </div>
+            </div>
+
+            <q-separator dense />
+
+            <div class="row items-center q-gutter-xs">
+              <q-icon name="admin_panel_settings" color="primary" size="18px" />
+              <div class="column">
+                <div class="text-caption text-grey-7">Perfil</div>
+                <div class="text-body2 text-weight-medium">
+                  {{ userInfo?.rol || userInfo?.Rol || 'N/A' }}
+                </div>
+              </div>
+            </div>
+
+            <q-separator v-if="agenciaSeleccionada?.division" dense />
+
+            <div v-if="agenciaSeleccionada?.division" class="row items-center q-gutter-xs">
+              <q-icon name="business" color="primary" size="18px" />
+              <div class="column">
+                <div class="text-caption text-grey-7">División</div>
+                <div class="text-body2 text-weight-medium">
+                  {{ agenciaSeleccionada.division }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions dense align="right" class="q-pa-sm">
+          <q-btn 
+            push 
+            dense
+            label="Cerrar" 
+            color="primary" 
+            v-close-popup 
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-layout>
 </template>
 
@@ -354,6 +521,10 @@ export default defineComponent({
     const showPassword = ref(false)
     const showConfirmPassword = ref(false)
     const confirmarPassword = ref('')
+    const dialogAgenciaOpen = ref(false)
+    const filtroAgencia = ref('')
+    const mostrarBotonCerrar = ref(false)
+    const dialogUsuarioInfo = ref(false)
 
     // Opciones de perfiles
     const opcionesPerfiles = [
@@ -379,6 +550,62 @@ export default defineComponent({
       // Si no está en el store, obtener de localStorage
       return authService.getUserInfo()
     })
+
+    // Obtener agencia seleccionada desde el store
+    const agenciaSeleccionada = computed(() => {
+      return authStore.agenciaSeleccionada || authService.getAgenciaSeleccionada()
+    })
+
+    // Obtener agencias del store
+    const agencias = computed(() => {
+      return authStore.agencias || []
+    })
+
+    // Filtrar agencias según el texto de búsqueda
+    const agenciasFiltradas = computed(() => {
+      if (!filtroAgencia.value || filtroAgencia.value.trim() === '') {
+        return agencias.value
+      }
+      
+      const filtro = filtroAgencia.value.toLowerCase().trim()
+      
+      return agencias.value.filter(agencia => {
+        const nombreAgencia = (agencia.agencia || '').toLowerCase()
+        const id = (agencia.bbvaAgenciaId || '').toString().toLowerCase()
+        const estado = (agencia.entidadFederativa || '').toLowerCase()
+        const division = (agencia.division || '').toLowerCase()
+        
+        return nombreAgencia.includes(filtro) ||
+               id.includes(filtro) ||
+               estado.includes(filtro) ||
+               division.includes(filtro)
+      })
+    })
+
+    // Función para abrir el diálogo de selección de agencia
+    const abrirDialogAgencia = () => {
+      filtroAgencia.value = '' // Limpiar filtro al abrir
+      mostrarBotonCerrar.value = true // Mostrar botón cuando se abre desde el vínculo
+      dialogAgenciaOpen.value = true
+    }
+
+    // Función para abrir el diálogo de información del usuario
+    const abrirDialogUsuarioInfo = () => {
+      dialogUsuarioInfo.value = true
+    }
+
+    // Función para seleccionar una agencia
+    const seleccionarAgencia = (agencia) => {
+      authStore.seleccionarAgencia(agencia)
+      dialogAgenciaOpen.value = false
+      
+      $q.notify({
+        type: 'positive',
+        message: `Agencia ${agencia.agencia || ''} seleccionada`,
+        position: 'top',
+        timeout: 2000
+      })
+    }
 
     // Verificar si el usuario puede dar de alta usuarios (rolId === 1)
     const puedeDarAltaUsuarios = computed(() => {
@@ -508,8 +735,11 @@ export default defineComponent({
       essentialLinks: linksList,
       leftDrawerOpen,
       userInfo,
+      agenciaSeleccionada,
+      agencias,
       puedeDarAltaUsuarios,
       dialogUsuario,
+      dialogAgenciaOpen,
       formUsuarioRef,
       nuevoUsuario,
       loadingUsuario,
@@ -526,8 +756,35 @@ export default defineComponent({
       navegarAUsuarios,
       abrirDialogUsuario,
       guardarUsuario,
+      abrirDialogAgencia,
+      seleccionarAgencia,
+      filtroAgencia,
+      agenciasFiltradas,
+      mostrarBotonCerrar,
+      abrirDialogUsuarioInfo,
+      dialogUsuarioInfo,
       tituloPagina
     }
   }
 })
 </script>
+
+<style scoped>
+.agencia-link {
+  text-decoration: underline;
+  transition: opacity 0.2s;
+}
+
+.agencia-link:hover {
+  opacity: 0.8;
+}
+
+.usuario-link {
+  transition: opacity 0.2s;
+  text-decoration: underline;
+}
+
+.usuario-link:hover {
+  opacity: 0.8;
+}
+</style>

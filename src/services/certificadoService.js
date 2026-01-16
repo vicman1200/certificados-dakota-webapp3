@@ -84,6 +84,36 @@ export const certificadoService = {
       // Propagar el error para que el componente lo maneje
       throw error
     }
+  },
+
+  /**
+   * Verifica si un contrato existe
+   * @param {string} noContrato - Número de contrato a verificar
+   * @returns {Promise<{contratoExiste: boolean}>}
+   */
+  async verificarContrato(noContrato) {
+    try {
+      const response = await api.get(`/verifica-contrato/${noContrato}`)
+      return response.data
+    } catch (error) {
+      // Propagar el error para que el componente lo maneje
+      throw error
+    }
+  },
+
+  /**
+   * Consulta certificados con filtros de perfiles y divisiones
+   * @param {object} filtros - Filtros de búsqueda { perfiles: string[], divisiones: string[] }
+   * @returns {Promise<any>}
+   */
+  async consultarCertificados(filtros) {
+    try {
+      const response = await api.post('/certificados/consulta', filtros)
+      return response.data
+    } catch (error) {
+      // Propagar el error para que el componente lo maneje
+      throw error
+    }
   }
 }
 

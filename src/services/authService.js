@@ -35,6 +35,21 @@ export const authService = {
         if (rolId !== null && rolId !== undefined) {
           localStorage.setItem('rolId', rolId.toString())
         }
+        
+        // Guardar agencias si vienen en el response
+        if (response.data.agencias && Array.isArray(response.data.agencias)) {
+          localStorage.setItem('agencias', JSON.stringify(response.data.agencias))
+        }
+        
+        // Guardar perfiles si vienen en el response
+        if (response.data.perfiles) {
+          localStorage.setItem('perfiles', JSON.stringify(response.data.perfiles))
+        }
+        
+        // Guardar divisiones si vienen en el response
+        if (response.data.divisiones) {
+          localStorage.setItem('divisiones', JSON.stringify(response.data.divisiones))
+        }
       }
       
       return response.data
@@ -51,6 +66,10 @@ export const authService = {
     localStorage.removeItem('authToken')
     localStorage.removeItem('userInfo')
     localStorage.removeItem('rolId')
+    localStorage.removeItem('agencias')
+    localStorage.removeItem('agenciaSeleccionada')
+    localStorage.removeItem('perfiles')
+    localStorage.removeItem('divisiones')
   },
 
   /**
@@ -85,6 +104,54 @@ export const authService = {
   getRolId() {
     const rolId = localStorage.getItem('rolId')
     return rolId ? parseInt(rolId, 10) : null
+  },
+
+  /**
+   * Obtiene las agencias guardadas
+   * @returns {array|null}
+   */
+  getAgencias() {
+    const agencias = localStorage.getItem('agencias')
+    return agencias ? JSON.parse(agencias) : null
+  },
+
+  /**
+   * Guarda la agencia seleccionada
+   * @param {object} agencia - Objeto de agencia seleccionada
+   */
+  setAgenciaSeleccionada(agencia) {
+    if (agencia) {
+      localStorage.setItem('agenciaSeleccionada', JSON.stringify(agencia))
+    } else {
+      localStorage.removeItem('agenciaSeleccionada')
+    }
+  },
+
+  /**
+   * Obtiene la agencia seleccionada
+   * @returns {object|null}
+   */
+  getAgenciaSeleccionada() {
+    const agencia = localStorage.getItem('agenciaSeleccionada')
+    return agencia ? JSON.parse(agencia) : null
+  },
+
+  /**
+   * Obtiene los perfiles guardados
+   * @returns {any|null}
+   */
+  getPerfiles() {
+    const perfiles = localStorage.getItem('perfiles')
+    return perfiles ? JSON.parse(perfiles) : null
+  },
+
+  /**
+   * Obtiene las divisiones guardadas
+   * @returns {any|null}
+   */
+  getDivisiones() {
+    const divisiones = localStorage.getItem('divisiones')
+    return divisiones ? JSON.parse(divisiones) : null
   }
 }
 

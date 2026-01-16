@@ -44,8 +44,8 @@
               icon="search"
               label="Buscar"
               dense
-              :disable="!filtroFechaDesde || !filtroFechaHasta"
-              @click="buscarCertificados"
+              :disable="rolId === 2 && (!filtroFechaDesde || !filtroFechaHasta)"
+              @click="manejarBusqueda"
             />
           </div>
         </template>
@@ -86,6 +86,12 @@
             >
               {{ props.value }}
             </a>
+          </q-td>
+        </template>
+
+        <template v-slot:body-cell-agencia="props">
+          <q-td :props="props">
+            {{ props.value || '' }}
           </q-td>
         </template>
 
@@ -162,9 +168,14 @@
                   outlined
                   dense
                   stack-label
-                  :rules="[val => !!val || 'El número de contrato es requerido']"
+                  :loading="verificandoContrato"
+                  :rules="[
+                    val => !!val || 'El número de contrato es requerido',
+                    val => !errorContratoDuplicado || 'Este número de contrato ya existe'
+                  ]"
                   lazy-rules
                   hint="Escriba el número de contrato"
+                  @update:model-value="verificarContratoDuplicado"
                 />
               </div>
             </div>
@@ -380,6 +391,227 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Dialog para selección de agencia -->
+    <q-dialog v-model="dialogAgenciaOpen" persistent>
+      <q-card style="min-width: 600px; max-width: 800px;">
+        <q-banner dense class="bg-black q-pa-md">
+          <div class="row items-center justify-between full-width">
+            <div class="text-h6 text-primary">Seleccionar Agencia</div>
+            <q-btn
+              v-if="mostrarBotonCerrar"
+              flat
+              dense
+              round
+              size="sm"
+              icon="close"
+              color="white"
+              text-color="white"
+              @click="dialogAgenciaOpen = false"
+            />
+          </div>
+        </q-banner>
+
+        <q-card-section>
+          <div class="text-subtitle2 text-grey-7">
+            Por favor, selecciona una agencia para continuar
+          </div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="filtroAgencia"
+            outlined
+            dense
+            debounce="300"
+            placeholder="Buscar agencia..."
+            class="q-mb-md"
+            autofocus
+          >
+            <template v-slot:prepend>
+              <q-icon name="search" />
+            </template>
+            <template v-slot:append v-if="filtroAgencia">
+              <q-icon
+                name="clear"
+                class="cursor-pointer"
+                @click="filtroAgencia = ''"
+              />
+            </template>
+          </q-input>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none" style="max-height: 60vh; overflow-y: auto;">
+          <q-list separator>
+            <q-item
+              v-for="(agencia, index) in agenciasFiltradas"
+              :key="index"
+              clickable
+              v-ripple
+              @click="seleccionarAgencia(agencia)"
+              class="q-pa-sm q-mb-sm"
+              style="border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px;"
+            >
+              <q-item-section>
+                <q-item-label class="text-weight-medium text-body2">
+                  {{ agencia.agencia || 'N/A' }}
+                </q-item-label>
+                <q-item-label caption class="q-mt-xs text-caption">
+                  <div class="column q-gutter-xs">
+                    <div v-if="agencia.bbvaAgenciaId" class="row items-center">
+                      <q-icon name="tag" size="12px" class="q-mr-xs" />
+                      <span class="text-weight-medium">Agencia ID:</span>
+                      <span class="q-ml-xs">{{ agencia.bbvaAgenciaId }}</span>
+                    </div>
+                    <div v-if="agencia.entidadFederativa" class="row items-center">
+                      <q-icon name="location_on" size="12px" class="q-mr-xs" />
+                      <span class="text-weight-medium">Estado:</span>
+                      <span class="q-ml-xs">{{ agencia.entidadFederativa }}</span>
+                    </div>
+                    <div v-if="agencia.division" class="row items-center">
+                      <q-icon name="business" size="12px" class="q-mr-xs" />
+                      <span class="text-weight-medium">División:</span>
+                      <span class="q-ml-xs">{{ agencia.division }}</span>
+                    </div>
+                  </div>
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-icon name="chevron_right" color="primary" size="20px" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-if="agenciasFiltradas.length === 0" class="text-center text-grey-6 q-pa-md">
+            No se encontraron agencias
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Dialog para filtros de búsqueda (RolId == 1) -->
+    <q-dialog v-model="dialogFiltrosBusqueda" persistent>
+      <q-card style="min-width: 500px; max-width: 600px;">
+        <q-banner dense class="bg-black q-pa-md">
+          <div class="row items-center justify-between full-width">
+            <div class="text-h6 text-primary">Filtros de Búsqueda</div>
+            <q-btn
+              flat
+              dense
+              round
+              size="sm"
+              icon="close"
+              color="white"
+              text-color="white"
+              @click="dialogFiltrosBusqueda = false"
+            />
+          </div>
+        </q-banner>
+
+        <q-card-section class="q-pt-md">
+          <div class="column q-gutter-md">
+            <div>
+              <q-select
+                v-model="filtrosSeleccionados.perfiles"
+                :options="opcionesPerfiles"
+                label="Perfiles"
+                outlined
+                dense
+                multiple
+                use-chips
+                use-input
+                input-debounce="0"
+                @filter="filtrarPerfiles"
+                emit-value
+                map-options
+              >
+                <template v-slot:no-option>
+                  <q-item>
+                    <q-item-section class="text-grey">
+                      No hay resultados
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+              <div class="q-mt-xs row q-gutter-sm">
+                <a
+                  v-if="!todoPerfilesSeleccionado"
+                  href="#"
+                  class="text-primary text-small cursor-pointer"
+                  style="font-size: 0.75rem; text-decoration: none;"
+                  @click.prevent="seleccionarTodosPerfiles"
+                >
+                  Seleccionar todo
+                </a>
+                <a
+                  v-if="filtrosSeleccionados.perfiles && filtrosSeleccionados.perfiles.length >= 2"
+                  href="#"
+                  class="text-primary text-small cursor-pointer"
+                  style="font-size: 0.75rem; text-decoration: none;"
+                  @click.prevent="limpiarPerfiles"
+                >
+                  Limpiar todo
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <q-select
+                v-model="filtrosSeleccionados.divisiones"
+                :options="opcionesDivisiones"
+                label="Divisiones"
+                outlined
+                dense
+                multiple
+                use-chips
+                use-input
+                input-debounce="0"
+                @filter="filtrarDivisiones"
+                emit-value
+                map-options
+              >
+                <template v-slot:no-option>
+                  <q-item>
+                    <q-item-section class="text-grey">
+                      No hay resultados
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+              <div class="q-mt-xs row q-gutter-sm">
+                <a
+                  v-if="!todoDivisionesSeleccionado"
+                  href="#"
+                  class="text-primary text-small cursor-pointer"
+                  style="font-size: 0.75rem; text-decoration: none;"
+                  @click.prevent="seleccionarTodasDivisiones"
+                >
+                  Seleccionar todo
+                </a>
+                <a
+                  v-if="filtrosSeleccionados.divisiones && filtrosSeleccionados.divisiones.length >= 2"
+                  href="#"
+                  class="text-primary text-small cursor-pointer"
+                  style="font-size: 0.75rem; text-decoration: none;"
+                  @click.prevent="limpiarDivisiones"
+                >
+                  Limpiar todo
+                </a>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat label="Cancelar" color="grey" @click="dialogFiltrosBusqueda = false" />
+          <q-btn 
+            push 
+            label="Aplicar Filtros" 
+            color="primary" 
+            @click="aplicarFiltrosBusqueda"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -401,10 +633,288 @@ const dialogOpen = ref(false)
 const guardando = ref(false)
 const modoEdicion = ref(false)
 const certificadoEditando = ref(null) // Guardar el uid del certificado que se está editando
+const dialogAgenciaOpen = ref(false)
+const filtroAgencia = ref('')
+const mostrarBotonCerrar = ref(false)
+const verificandoContrato = ref(false)
+const errorContratoDuplicado = ref(false)
+let timeoutVerificacion = null
 
 // Filtros de fecha para búsqueda
 const filtroFechaDesde = ref('')
 const filtroFechaHasta = ref('')
+
+// Dialog y filtros para búsqueda avanzada (RolId == 1)
+const dialogFiltrosBusqueda = ref(false)
+const filtrosSeleccionados = ref({
+  perfiles: [],
+  divisiones: []
+})
+
+// Obtener RolId del store
+const rolId = computed(() => {
+  return authStore.rolId || authService.getRolId()
+})
+
+// Obtener perfiles y divisiones del store
+const perfiles = computed(() => {
+  return authStore.perfiles || authService.getPerfiles() || []
+})
+
+const divisiones = computed(() => {
+  return authStore.divisiones || authService.getDivisiones() || []
+})
+
+// Preparar opciones para los q-select de perfiles
+const opcionesPerfilesCompletas = computed(() => {
+  if (!perfiles.value || !Array.isArray(perfiles.value)) {
+    return []
+  }
+  // Si son objetos, mapearlos a {label, value}, si son strings, convertirlos
+  return perfiles.value.map((perfil, index) => {
+    if (typeof perfil === 'object' && perfil !== null) {
+      return {
+        label: perfil.label || perfil.nombre || perfil.perfil || String(perfil),
+        value: perfil.value || perfil.id || perfil.perfilId || index
+      }
+    }
+    return {
+      label: String(perfil),
+      value: perfil
+    }
+  })
+})
+
+// Preparar opciones para los q-select de divisiones
+const opcionesDivisionesCompletas = computed(() => {
+  if (!divisiones.value || !Array.isArray(divisiones.value)) {
+    return []
+  }
+  // Si son objetos, mapearlos a {label, value}, si son strings, convertirlos
+  return divisiones.value.map((division, index) => {
+    if (typeof division === 'object' && division !== null) {
+      return {
+        label: division.label || division.nombre || division.division || String(division),
+        value: division.value || division.id || division.divisionId || index
+      }
+    }
+    return {
+      label: String(division),
+      value: division
+    }
+  })
+})
+
+// Opciones filtradas para perfiles (para el filtro del q-select)
+const opcionesPerfiles = ref([])
+const opcionesDivisiones = ref([])
+
+// Inicializar opciones
+watch([opcionesPerfilesCompletas, opcionesDivisionesCompletas], () => {
+  opcionesPerfiles.value = opcionesPerfilesCompletas.value
+  opcionesDivisiones.value = opcionesDivisionesCompletas.value
+}, { immediate: true })
+
+// Función para filtrar perfiles en el q-select
+const filtrarPerfiles = (val, update) => {
+  if (val === '') {
+    update(() => {
+      opcionesPerfiles.value = opcionesPerfilesCompletas.value
+    })
+    return
+  }
+  update(() => {
+    const needle = val.toLowerCase()
+    opcionesPerfiles.value = opcionesPerfilesCompletas.value.filter(
+      v => v.label.toLowerCase().indexOf(needle) > -1
+    )
+  })
+}
+
+// Función para filtrar divisiones en el q-select
+const filtrarDivisiones = (val, update) => {
+  if (val === '') {
+    update(() => {
+      opcionesDivisiones.value = opcionesDivisionesCompletas.value
+    })
+    return
+  }
+  update(() => {
+    const needle = val.toLowerCase()
+    opcionesDivisiones.value = opcionesDivisionesCompletas.value.filter(
+      v => v.label.toLowerCase().indexOf(needle) > -1
+    )
+  })
+}
+
+// Función para manejar el click en el botón Buscar
+const manejarBusqueda = () => {
+  if (rolId.value === 1) {
+    // Si es RolId == 1, abrir el dialog de filtros
+    dialogFiltrosBusqueda.value = true
+  } else {
+    // Si es RolId == 2, ejecutar la búsqueda normal
+    buscarCertificados()
+  }
+}
+
+// Función para aplicar los filtros de búsqueda
+const aplicarFiltrosBusqueda = async () => {
+  // Validar que al menos uno de los q-select tenga elementos seleccionados
+  const perfilesSeleccionados = filtrosSeleccionados.value.perfiles || []
+  const divisionesSeleccionadas = filtrosSeleccionados.value.divisiones || []
+  
+  if (perfilesSeleccionados.length === 0 && divisionesSeleccionadas.length === 0) {
+    $q.notify({
+      type: 'negative',
+      message: 'Debe seleccionar al menos un perfil o una división para aplicar los filtros',
+      position: 'top',
+      timeout: 4000
+    })
+    return
+  }
+  
+  loading.value = true
+  
+  try {
+    // Convertir los valores seleccionados a strings (labels)
+    const perfilesStrings = perfilesSeleccionados.map(valor => {
+      const opcion = opcionesPerfilesCompletas.value.find(opt => opt.value === valor)
+      return opcion ? opcion.label : String(valor)
+    })
+    
+    const divisionesStrings = divisionesSeleccionadas.map(valor => {
+      const opcion = opcionesDivisionesCompletas.value.find(opt => opt.value === valor)
+      return opcion ? opcion.label : String(valor)
+    })
+    
+    // Crear el payload con arreglos de strings y fechas
+    const payload = {
+      perfiles: perfilesStrings,
+      divisiones: divisionesStrings,
+      fechaExpedicionDesde: filtroFechaDesde.value || '',
+      fechaExpedicionHasta: filtroFechaHasta.value || ''
+    }
+    
+    // Imprimir el payload en la consola
+    console.log('Payload de filtros:', payload)
+    
+    // Hacer el POST a la API
+    const response = await certificadoService.consultarCertificados(payload)
+    
+    // Imprimir la respuesta en la consola
+    console.log('Respuesta de la API:', response)
+    
+    // Procesar el response de la misma manera que cargarCertificados
+    // Verificar si fue exitoso (code === 0)
+    if (response.code === 0 && response.certificados) {
+      rows.value = response.certificados
+      // Verificar si el array está vacío
+      if (response.certificados.length === 0) {
+        $q.notify({
+          type: 'info',
+          message: 'No se encontraron registros con los filtros seleccionados',
+          position: 'top',
+          timeout: 3000
+        })
+      }
+    } else if (response.code === 0 && Array.isArray(response.data)) {
+      // Si la respuesta viene en data en lugar de certificados
+      rows.value = response.data
+      // Verificar si el array está vacío
+      if (response.data.length === 0) {
+        $q.notify({
+          type: 'info',
+          message: 'No se encontraron registros con los filtros seleccionados',
+          position: 'top',
+          timeout: 3000
+        })
+      }
+    } else {
+      // Si no hay certificados, inicializar array vacío
+      rows.value = []
+      
+      // Mostrar mensaje de que no se encontraron registros
+      const mensaje = response.message || 'No se encontraron registros con los filtros seleccionados'
+      $q.notify({
+        type: 'info',
+        message: mensaje,
+        position: 'top',
+        timeout: 3000
+      })
+    }
+    
+    // Cerrar el dialog
+    dialogFiltrosBusqueda.value = false
+    
+    $q.notify({
+      type: 'positive',
+      message: 'Filtros aplicados correctamente',
+      position: 'top',
+      timeout: 2000
+    })
+  } catch (error) {
+    console.error('Error al aplicar filtros:', error)
+    
+    const errorMessage = error.response?.data?.mensaje || 
+                        error.response?.data?.message || 
+                        'Error al aplicar los filtros'
+    
+    $q.notify({
+      type: 'negative',
+      message: errorMessage,
+      position: 'top',
+      timeout: 3000
+    })
+    
+    // En caso de error, inicializar array vacío
+    rows.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// Computed para verificar si todos los perfiles están seleccionados
+const todoPerfilesSeleccionado = computed(() => {
+  if (!opcionesPerfilesCompletas.value || opcionesPerfilesCompletas.value.length === 0) {
+    return false
+  }
+  if (!filtrosSeleccionados.value.perfiles || filtrosSeleccionados.value.perfiles.length === 0) {
+    return false
+  }
+  return filtrosSeleccionados.value.perfiles.length === opcionesPerfilesCompletas.value.length
+})
+
+// Computed para verificar si todas las divisiones están seleccionadas
+const todoDivisionesSeleccionado = computed(() => {
+  if (!opcionesDivisionesCompletas.value || opcionesDivisionesCompletas.value.length === 0) {
+    return false
+  }
+  if (!filtrosSeleccionados.value.divisiones || filtrosSeleccionados.value.divisiones.length === 0) {
+    return false
+  }
+  return filtrosSeleccionados.value.divisiones.length === opcionesDivisionesCompletas.value.length
+})
+
+// Función para limpiar la selección de perfiles
+const limpiarPerfiles = () => {
+  filtrosSeleccionados.value.perfiles = []
+}
+
+// Función para limpiar la selección de divisiones
+const limpiarDivisiones = () => {
+  filtrosSeleccionados.value.divisiones = []
+}
+
+// Función para seleccionar todos los perfiles
+const seleccionarTodosPerfiles = () => {
+  filtrosSeleccionados.value.perfiles = opcionesPerfilesCompletas.value.map(opt => opt.value)
+}
+
+// Función para seleccionar todas las divisiones
+const seleccionarTodasDivisiones = () => {
+  filtrosSeleccionados.value.divisiones = opcionesDivisionesCompletas.value.map(opt => opt.value)
+}
 
 // Refs para los campos del formulario
 const formRef = ref(null)
@@ -583,6 +1093,14 @@ const columns = [
     label: 'Número de contrato',
     align: 'left',
     field: row => row.numeroContrato,
+    format: val => val || '',
+    sortable: true
+  },
+  {
+    name: 'agencia',
+    label: 'Agencia',
+    align: 'left',
+    field: row => row.agencia,
     format: val => val || '',
     sortable: true
   },
@@ -805,6 +1323,14 @@ const editarCertificado = async (row) => {
   modoEdicion.value = true
   certificadoEditando.value = row.uid
   
+  // Limpiar estados de validación de contrato (no se valida en modo edición)
+  errorContratoDuplicado.value = false
+  verificandoContrato.value = false
+  if (timeoutVerificacion) {
+    clearTimeout(timeoutVerificacion)
+    timeoutVerificacion = null
+  }
+  
   // Guardar la submarca antes de asignar la marca (para evitar que el watcher la limpie)
   const submarcaOriginal = row.submarca || ''
   
@@ -885,11 +1411,61 @@ const calcularAniosVigencia = (vigenteDesde, vigenteHasta) => {
   return 4
 }
 
+// Función para verificar si el contrato está duplicado
+const verificarContratoDuplicado = (valor) => {
+  // Limpiar timeout anterior si existe
+  if (timeoutVerificacion) {
+    clearTimeout(timeoutVerificacion)
+  }
+
+  // No verificar si está vacío o en modo edición
+  if (!valor || valor.trim() === '' || modoEdicion.value) {
+    errorContratoDuplicado.value = false
+    verificandoContrato.value = false
+    return
+  }
+
+  // Limpiar error previo
+  errorContratoDuplicado.value = false
+  
+  // Activar loading
+  verificandoContrato.value = true
+
+  // Debounce: esperar 500ms antes de hacer la verificación
+  timeoutVerificacion = setTimeout(async () => {
+    try {
+      const response = await certificadoService.verificarContrato(valor.trim())
+      
+      if (response.contratoExiste === true) {
+        errorContratoDuplicado.value = true
+        // Forzar validación del campo
+        await numeroContratoRef.value?.validate()
+      } else {
+        errorContratoDuplicado.value = false
+      }
+    } catch (error) {
+      console.error('Error al verificar contrato:', error)
+      // En caso de error, no bloquear el formulario
+      errorContratoDuplicado.value = false
+    } finally {
+      verificandoContrato.value = false
+    }
+  }, 500)
+}
+
 // Función para cerrar el diálogo
 const cerrarDialog = () => {
+  // Limpiar timeout si existe
+  if (timeoutVerificacion) {
+    clearTimeout(timeoutVerificacion)
+    timeoutVerificacion = null
+  }
+  
   dialogOpen.value = false
   modoEdicion.value = false
   certificadoEditando.value = null
+  errorContratoDuplicado.value = false
+  verificandoContrato.value = false
   resetearFormulario()
 }
 
@@ -914,6 +1490,10 @@ const resetearFormulario = (prellenarFechaHoy = false) => {
     creadoPor: usuarioNombre,
     estado: 'Solicitado'
   }
+  
+  // Limpiar estados de validación de contrato
+  errorContratoDuplicado.value = false
+  verificandoContrato.value = false
 }
 
 // Función para validar todos los campos
@@ -1012,6 +1592,9 @@ const enviarCertificado = async () => {
     const userInfo = authStore.user || authService.getUserInfo() || {}
     const creadoPorEmail = userInfo.email || userInfo.usuario || 'tester.api@dakotamobility.com.mx'
     
+    // Obtener la agencia seleccionada
+    const agenciaSeleccionada = authStore.agenciaSeleccionada || authService.getAgenciaSeleccionada()
+    
     // Formatear fechas al formato ISO requerido (YYYY-MM-DDTHH:mm:ss)
     const formatearFechaISO = (fecha) => {
       if (!fecha) return null
@@ -1036,6 +1619,11 @@ const enviarCertificado = async () => {
       submarca: formulario.value.submarca,
       modelo: formulario.value.modelo,
       serie: formulario.value.numeroSerie
+    }
+    
+    // Agregar agenciaId si hay una agencia seleccionada
+    if (agenciaSeleccionada && agenciaSeleccionada.agenciaId) {
+      payload.agenciaId = agenciaSeleccionada.agenciaId
     }
     
     // Enviar al API
@@ -1287,10 +1875,18 @@ const cargarCertificados = async () => {
   loading.value = true
   
   try {
-    // Preparar el payload con las fechas
+    // Obtener la agencia seleccionada
+    const agenciaSeleccionada = authStore.agenciaSeleccionada || authService.getAgenciaSeleccionada()
+    
+    // Preparar el payload con las fechas y agenciaId
     const payload = {
       fechaExpedicionDesde: filtroFechaDesde.value || '',
       fechaExpedicionHasta: filtroFechaHasta.value || ''
+    }
+    
+    // Agregar agenciaId si hay una agencia seleccionada
+    if (agenciaSeleccionada && agenciaSeleccionada.agenciaId) {
+      payload.agenciaId = agenciaSeleccionada.agenciaId
     }
     
     // Llamar al servicio
@@ -1375,6 +1971,57 @@ const obtenerFechaHoy = () => {
   return hoy.toISOString().split('T')[0]
 }
 
+// Computed para obtener agencias del store
+const agencias = computed(() => {
+  return authStore.agencias || []
+})
+
+// Filtrar agencias según el texto de búsqueda
+const agenciasFiltradas = computed(() => {
+  if (!filtroAgencia.value || filtroAgencia.value.trim() === '') {
+    return agencias.value
+  }
+  
+  const filtro = filtroAgencia.value.toLowerCase().trim()
+  
+  return agencias.value.filter(agencia => {
+    const nombreAgencia = (agencia.agencia || '').toLowerCase()
+    const id = (agencia.bbvaAgenciaId || '').toString().toLowerCase()
+    const estado = (agencia.entidadFederativa || '').toLowerCase()
+    const division = (agencia.division || '').toLowerCase()
+    
+    return nombreAgencia.includes(filtro) ||
+           id.includes(filtro) ||
+           estado.includes(filtro) ||
+           division.includes(filtro)
+  })
+})
+
+// Función para seleccionar una agencia
+const seleccionarAgencia = async (agencia) => {
+  authStore.seleccionarAgencia(agencia)
+  filtroAgencia.value = '' // Limpiar filtro al seleccionar
+  dialogAgenciaOpen.value = false
+  
+  $q.notify({
+    type: 'positive',
+    message: `Agencia ${agencia.agencia || ''} seleccionada`,
+    position: 'top',
+    timeout: 2000
+  })
+  
+  // Cargar certificados después de seleccionar la agencia
+  await cargarCertificados()
+}
+
+// Watcher para detectar cambios en la agencia seleccionada y recargar certificados
+watch(() => authStore.agenciaSeleccionada, async (nuevaAgencia, agenciaAnterior) => {
+  // Solo recargar si hay una nueva agencia seleccionada y es diferente a la anterior
+  if (nuevaAgencia && nuevaAgencia !== agenciaAnterior) {
+    await cargarCertificados()
+  }
+}, { deep: true })
+
 // Verificar autenticación al cargar y asignar fechas por defecto
 onMounted(async () => {
   authStore.checkAuth()
@@ -1385,12 +2032,26 @@ onMounted(async () => {
     return
   }
   
+  // Verificar si hay agencias disponibles y no hay una seleccionada
+  const agenciasDisponibles = authStore.agencias && authStore.agencias.length > 0
+  const agenciaSeleccionada = authStore.agenciaSeleccionada
+  
+  if (agenciasDisponibles && !agenciaSeleccionada) {
+    // Limpiar filtro y mostrar el modal de selección de agencia
+    filtroAgencia.value = ''
+    mostrarBotonCerrar.value = false // No mostrar botón cuando se abre automáticamente después del login
+    dialogAgenciaOpen.value = true
+  }
+  
   // Asignar fechas por defecto: primer día del mes actual y fecha de hoy
   filtroFechaDesde.value = obtenerPrimerDiaDelMes()
   filtroFechaHasta.value = obtenerFechaHoy()
   
-  // Cargar certificados automáticamente con las fechas por defecto
-  await cargarCertificados()
+  // Cargar certificados solo si hay una agencia seleccionada
+  const agenciaSeleccionadaActual = authStore.agenciaSeleccionada || authService.getAgenciaSeleccionada()
+  if (agenciaSeleccionadaActual) {
+    await cargarCertificados()
+  }
 })
 </script>
 

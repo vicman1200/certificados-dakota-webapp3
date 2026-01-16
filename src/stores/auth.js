@@ -7,7 +7,11 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: false,
     loading: false,
     error: null,
-    rolId: null
+    rolId: null,
+    agencias: [],
+    agenciaSeleccionada: null,
+    perfiles: null,
+    divisiones: null
   }),
 
   getters: {
@@ -54,6 +58,30 @@ export const useAuthStore = defineStore('auth', {
           this.rolId = authService.getRolId()
         }
         
+        // Guardar agencias si vienen en el response
+        if (response.agencias && Array.isArray(response.agencias)) {
+          this.agencias = response.agencias
+        } else {
+          // Intentar obtener del localStorage si no viene en el response
+          this.agencias = authService.getAgencias() || []
+        }
+        
+        // Guardar perfiles si vienen en el response
+        if (response.perfiles !== undefined) {
+          this.perfiles = response.perfiles
+        } else {
+          // Intentar obtener del localStorage si no viene en el response
+          this.perfiles = authService.getPerfiles()
+        }
+        
+        // Guardar divisiones si vienen en el response
+        if (response.divisiones !== undefined) {
+          this.divisiones = response.divisiones
+        } else {
+          // Intentar obtener del localStorage si no viene en el response
+          this.divisiones = authService.getDivisiones()
+        }
+        
         return { success: true, data: response }
       } catch (error) {
         this.error = error.response?.data?.mensaje || 
@@ -82,6 +110,10 @@ export const useAuthStore = defineStore('auth', {
       this.isAuthenticated = false
       this.error = null
       this.rolId = null
+      this.agencias = []
+      this.agenciaSeleccionada = null
+      this.perfiles = null
+      this.divisiones = null
     },
 
     /**
@@ -92,16 +124,37 @@ export const useAuthStore = defineStore('auth', {
       const token = authService.getToken()
       const userInfo = authService.getUserInfo()
       const rolId = authService.getRolId()
+      const agencias = authService.getAgencias()
+      const agenciaSeleccionada = authService.getAgenciaSeleccionada()
+      const perfiles = authService.getPerfiles()
+      const divisiones = authService.getDivisiones()
       
       if (token) {
         this.isAuthenticated = true
         this.user = userInfo
         this.rolId = rolId
+        this.agencias = agencias || []
+        this.agenciaSeleccionada = agenciaSeleccionada
+        this.perfiles = perfiles
+        this.divisiones = divisiones
       } else {
         this.isAuthenticated = false
         this.user = null
         this.rolId = null
+        this.agencias = []
+        this.agenciaSeleccionada = null
+        this.perfiles = null
+        this.divisiones = null
       }
+    },
+
+    /**
+     * Selecciona una agencia
+     * @param {object} agencia - Objeto de agencia a seleccionar
+     */
+    seleccionarAgencia(agencia) {
+      this.agenciaSeleccionada = agencia
+      authService.setAgenciaSeleccionada(agencia)
     },
 
     /**
