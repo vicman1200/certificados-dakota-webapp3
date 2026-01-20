@@ -656,6 +656,12 @@ const rolId = computed(() => {
   return authStore.rolId || authService.getRolId()
 })
 
+// Obtener Rol del usuario
+const rol = computed(() => {
+  const userInfo = authStore.user || authService.getUserInfo()
+  return userInfo?.rol || userInfo?.Rol || null
+})
+
 // Obtener perfiles y divisiones del store
 const perfiles = computed(() => {
   return authStore.perfiles || authService.getPerfiles() || []
@@ -749,8 +755,11 @@ const filtrarDivisiones = (val, update) => {
 
 // Función para manejar el click en el botón Buscar
 const manejarBusqueda = () => {
-  if (rolId.value === 1) {
-    // Si es RolId == 1, abrir el dialog de filtros
+  // Si es RolId == 1 y Rol == 'GR', ejecutar búsqueda normal (como RolId == 2)
+  if (rolId.value === 1 && rol.value === 'GR') {
+    buscarCertificados()
+  } else if (rolId.value === 1) {
+    // Si es RolId == 1 pero Rol != 'GR', abrir el dialog de filtros
     dialogFiltrosBusqueda.value = true
   } else {
     // Si es RolId == 2, ejecutar la búsqueda normal
