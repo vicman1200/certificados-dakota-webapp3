@@ -276,7 +276,21 @@
                 </q-select>
               </div>
               <div class="col">
+                <!-- Seminuevo: Marca como q-input -->
+                <q-input
+                  v-if="formulario.tipoVehiculo === 'SE'"
+                  ref="marcaRef"
+                  v-model="formulario.marca"
+                  label="Marca"
+                  outlined
+                  dense
+                  :rules="[val => !!val || 'La marca es requerida']"
+                  lazy-rules
+                  placeholder="Escriba la marca"
+                />
+                <!-- Nuevo: Marca como q-select -->
                 <q-select
+                  v-else-if="formulario.tipoVehiculo === 'NU'"
                   ref="marcaRef"
                   v-model="formulario.marca"
                   :options="opcionesMarcas"
@@ -301,11 +315,25 @@
                 </q-select>
               </div>
               <div class="col">
+                <!-- Seminuevo: Submarca / Versión como q-input -->
+                <q-input
+                  v-if="formulario.tipoVehiculo === 'SE'"
+                  ref="submarcaRef"
+                  v-model="formulario.submarca"
+                  label="Submarca / Versión"
+                  outlined
+                  dense
+                  :rules="[val => !!val || 'La submarca es requerida']"
+                  lazy-rules
+                  placeholder="Escriba la submarca o versión"
+                />
+                <!-- Nuevo: Submarca como q-select -->
                 <q-select
+                  v-else-if="formulario.tipoVehiculo === 'NU'"
                   ref="submarcaRef"
                   v-model="formulario.submarca"
                   :options="opcionesSubmarcasFiltradas"
-                  label="Submarca"
+                  label="Submarca / Versión"
                   outlined
                   dense
                   :rules="[val => !!val || 'La submarca es requerida']"
@@ -662,6 +690,12 @@ const rol = computed(() => {
   return userInfo?.rol || userInfo?.Rol || null
 })
 
+// Obtener la división del usuario desde userInfo
+const divisionUsuario = computed(() => {
+  const userInfo = authStore.user || authService.getUserInfo()
+  return userInfo?.division || userInfo?.Division || null
+})
+
 // Obtener perfiles y divisiones del store
 const perfiles = computed(() => {
   return authStore.perfiles || authService.getPerfiles() || []
@@ -693,9 +727,19 @@ const opcionesPerfilesCompletas = computed(() => {
 
 // Preparar opciones para los q-select de divisiones
 const opcionesDivisionesCompletas = computed(() => {
+  // Si el rol es "STAFF DIVISIONAL", solo mostrar la división del usuario
+  if (rol.value === 'STAFF DIVISIONAL' && divisionUsuario.value) {
+    return [{
+      label: String(divisionUsuario.value),
+      value: divisionUsuario.value
+    }]
+  }
+  
+  // Si no hay divisiones o no es un array, retornar vacío
   if (!divisiones.value || !Array.isArray(divisiones.value)) {
     return []
   }
+  
   // Si son objetos, mapearlos a {label, value}, si son strings, convertirlos
   return divisiones.value.map((division, index) => {
     if (typeof division === 'object' && division !== null) {
@@ -760,6 +804,10 @@ const manejarBusqueda = () => {
     buscarCertificados()
   } else if (rolId.value === 1) {
     // Si es RolId == 1 pero Rol != 'GR', abrir el dialog de filtros
+    // Si el rol es "STAFF DIVISIONAL", seleccionar automáticamente la división del usuario
+    if (rol.value === 'STAFF DIVISIONAL' && divisionUsuario.value) {
+      filtrosSeleccionados.value.divisiones = [divisionUsuario.value]
+    }
     dialogFiltrosBusqueda.value = true
   } else {
     // Si es RolId == 2, ejecutar la búsqueda normal
@@ -1052,18 +1100,17 @@ const crearNuevaSubmarca = (val, done) => {
   }
 }
 
-// Watcher para actualizar las opciones filtradas cuando cambie la marca
+// Watcher para limpiar submarca cuando cambie la marca (opcional; con q-input ya no se dependen opciones)
 watch(() => formulario.value.marca, (nuevaMarca, marcaAnterior) => {
-  // Solo limpiar la submarca si la marca realmente cambió (no es la primera asignación)
   if (marcaAnterior !== undefined && marcaAnterior !== nuevaMarca) {
     formulario.value.submarca = ''
   }
-  // Actualizar las opciones filtradas con todas las submarcas de la nueva marca
-  if (nuevaMarca) {
-    opcionesSubmarcasFiltradas.value = opcionesSubmarcas.value
-  } else {
-    opcionesSubmarcasFiltradas.value = []
-  }
+})
+
+// Watcher para limpiar marca y submarca cuando cambie el tipo de vehículo (Nuevo/Seminuevo)
+watch(() => formulario.value.tipoVehiculo, () => {
+  formulario.value.marca = ''
+  formulario.value.submarca = ''
 })
 
 const rows = ref([])
@@ -1343,7 +1390,7 @@ const editarCertificado = async (row) => {
   // Guardar la submarca antes de asignar la marca (para evitar que el watcher la limpie)
   const submarcaOriginal = row.submarca || ''
   
-  // Poblar el formulario con los datos del certificado
+  // Poblar el formulario con los datos del certificado (marca y submarca como texto desde q-input)
   formulario.value = {
     titular: row.titular || '',
     numeroContrato: row.numeroContrato || '',
@@ -1353,35 +1400,14 @@ const editarCertificado = async (row) => {
     vigenteHasta: row.vigenteHasta ? formatDateForInput(row.vigenteHasta) : '',
     tipoVehiculo: row.tipoVehiculo || '',
     marca: row.marca || '',
-    submarca: '', // Inicializar vacío, se asignará después de cargar las opciones
+    submarca: submarcaOriginal,
     modelo: row.modelo || '',
     numeroSerie: row.serie || row.numeroSerie || '',
     usuario: row.usuario || '',
     creadoPor: row.creadoPor || '',
     estado: row.estado || 'Solicitado'
   }
-  
-  // Usar nextTick para asegurar que el watcher de marca se ejecute primero
-  await nextTick()
-  
-  // Inicializar las opciones filtradas de submarca si hay una marca seleccionada
-  if (formulario.value.marca) {
-    opcionesSubmarcasFiltradas.value = opcionesSubmarcas.value
-    
-    // Si la submarca no está en las opciones (texto libre), agregarla
-    if (submarcaOriginal && !opcionesSubmarcasFiltradas.value.some(opt => opt.value === submarcaOriginal)) {
-      opcionesSubmarcasFiltradas.value.push({
-        label: submarcaOriginal,
-        value: submarcaOriginal
-      })
-    }
-    
-    // Asignar la submarca después de cargar las opciones
-    formulario.value.submarca = submarcaOriginal
-  } else {
-    opcionesSubmarcasFiltradas.value = []
-  }
-  
+
   dialogOpen.value = true
 }
 
