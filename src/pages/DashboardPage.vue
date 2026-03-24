@@ -5,7 +5,8 @@
         :columns="columns"
         :filter="filter"
         row-key="uid"
-        :rows-per-page-options="[10, 25, 50, 100]"
+        :rows-per-page-options="[100, 200, 500]"
+        :pagination="{ rowsPerPage: 100 }"
         class="dashboard-table"
         dense
         :loading="loading"
@@ -79,6 +80,13 @@
 
         <template v-slot:body-cell-titular="props">
           <q-td :props="props">
+            <q-icon
+              v-if="props.row.procesado"
+              name="lock"
+              size="14px"
+              color="grey-7"
+              class="q-mr-xs"
+            />
             <a
               href="#"
               class="titular-link"
@@ -273,6 +281,19 @@
                       </q-item-section>
                     </q-item>
                   </template>
+                  <template v-slot:after>
+                    <q-btn
+                      v-if="formulario.tipoVehiculo === 'SE'"
+                      round
+                      dense
+                      flat
+                      icon="directions_car"
+                      color="primary"
+                      @click.stop="abrirBusquedaVehiculo"
+                    >
+                      <q-tooltip>Buscar vehículo</q-tooltip>
+                    </q-btn>
+                  </template>
                 </q-select>
               </div>
               <div class="col">
@@ -284,9 +305,9 @@
                   label="Marca"
                   outlined
                   dense
+                  readonly
                   :rules="[val => !!val || 'La marca es requerida']"
                   lazy-rules
-                  placeholder="Escriba la marca"
                 />
                 <!-- Nuevo: Marca como q-select -->
                 <q-select
@@ -323,9 +344,9 @@
                   label="Submarca / Versión"
                   outlined
                   dense
+                  readonly
                   :rules="[val => !!val || 'La submarca es requerida']"
                   lazy-rules
-                  placeholder="Escriba la submarca o versión"
                 />
                 <!-- Nuevo: Submarca como q-select -->
                 <q-select
@@ -367,6 +388,19 @@
                     </q-item>
                   </template>
                 </q-select>
+              </div>
+            </div>
+
+            <!-- Versión (ancho completo, solo Seminuevo) -->
+            <div v-if="formulario.tipoVehiculo === 'SE'" class="row q-gutter-md">
+              <div class="col-12">
+                <q-input
+                  v-model="formulario.version"
+                  label="Versión"
+                  outlined
+                  dense
+                  readonly
+                />
               </div>
             </div>
 
@@ -413,9 +447,132 @@
                 dense
                 push
                 :loading="guardando"
+                :disable="modoEdicion && certificadoProcesado"
               />
             </q-card-actions>
           </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Dialog Búsqueda de vehículo (cuando tipo es Nuevo) -->
+    <q-dialog v-model="dialogBusquedaVehiculoOpen" @keyup.escape="dialogBusquedaVehiculoOpen = false">
+      <q-card style="min-width: 720px; max-width: 90vw;">
+        <q-card-section>
+          <div class="row items-center justify-between">
+            <div class="text-h6">Búsqueda de vehículo</div>
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              @click="dialogBusquedaVehiculoOpen = false"
+            />
+          </div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-sm-4">
+              <q-input
+                v-model="busquedaAnio"
+                label="Año"
+                outlined
+                dense
+                clearable
+                stack-label
+                placeholder="Ej. 2024"
+                :rules="reglasBusquedaAnio"
+                mask="####"
+                maxlength="4"
+                autofocus
+                @keyup.enter="puedeBuscarVehiculo && ejecutarBusquedaVehiculo()"
+              />
+            </div>
+            <div class="col-12 col-sm-4">
+              <q-input
+                v-model="busquedaMarca"
+                label="Marca"
+                outlined
+                dense
+                clearable
+                stack-label
+                placeholder="Ej. Honda"
+                :rules="[val => !!val || 'La marca es obligatoria']"
+                @keyup.enter="puedeBuscarVehiculo && ejecutarBusquedaVehiculo()"
+              />
+            </div>
+            <div class="col-12 col-sm-4">
+              <q-input
+                v-model="busquedaSubtipo"
+                label="Subtipo (opcional)"
+                outlined
+                dense
+                clearable
+                stack-label
+                placeholder="Ej. SUV"
+                @keyup.enter="puedeBuscarVehiculo && ejecutarBusquedaVehiculo()"
+              />
+            </div>
+          </div>
+          <div class="row q-mt-md">
+            <div class="col-12">
+              <q-btn
+                label="Buscar"
+                color="primary"
+                class="full-width"
+                no-caps
+                :disable="!puedeBuscarVehiculo"
+                :loading="busquedaVehiculoLoading"
+                @click="ejecutarBusquedaVehiculo"
+              />
+            </div>
+          </div>
+          <div class="row q-mt-lg">
+            <div class="col-12">
+              <q-table
+                :rows="resultadosBusquedaVehiculo"
+                :columns="columnasBusquedaVehiculo"
+                :filter="filterBusquedaVehiculo"
+                row-key="_rowKey"
+                selection="single"
+                v-model:selected="selectedVehiculoBusqueda"
+                flat
+                bordered
+                dense
+                :loading="busquedaVehiculoLoading"
+                :rows-per-page-options="[5, 10]"
+                class="tabla-busqueda-vehiculo"
+              >
+                <template v-slot:top-right>
+                  <q-input
+                    v-model="filterBusquedaVehiculo"
+                    outlined
+                    dense
+                    debounce="300"
+                    placeholder="Buscar..."
+                    clearable
+                    style="min-width: 200px"
+                  >
+                    <template v-slot:append>
+                      <q-icon name="search" />
+                    </template>
+                  </q-input>
+                </template>
+              </q-table>
+            </div>
+          </div>
+          <div class="row q-mt-md">
+            <div class="col-12">
+              <q-btn
+                label="Aceptar"
+                color="primary"
+                class="full-width"
+                no-caps
+                :disable="selectedVehiculoBusqueda.length === 0"
+                @click="aceptarVehiculoSeleccionado"
+              />
+            </div>
+          </div>
         </q-card-section>
       </q-card>
     </q-dialog>
@@ -649,6 +806,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { authService } from 'src/services/authService'
 import { certificadoService } from 'src/services/certificadoService'
+import { catalogoVehiculosService } from 'src/services/catalogoVehiculosService'
 import { useQuasar, date } from 'quasar'
 
 const router = useRouter()
@@ -660,7 +818,9 @@ const filter = ref('')
 const dialogOpen = ref(false)
 const guardando = ref(false)
 const modoEdicion = ref(false)
+const cargandoEdicion = ref(false)
 const certificadoEditando = ref(null) // Guardar el uid del certificado que se está editando
+const certificadoProcesado = ref(false)
 const dialogAgenciaOpen = ref(false)
 const filtroAgencia = ref('')
 const mostrarBotonCerrar = ref(false)
@@ -998,6 +1158,8 @@ const formulario = ref({
   submarca: '',
   modelo: '',
   numeroSerie: '',
+  descripcionVehiculo: '',
+  version: '',
   usuario: '',
   creadoPor: '',
   estado: 'Solicitado'
@@ -1100,18 +1262,153 @@ const crearNuevaSubmarca = (val, done) => {
   }
 }
 
-// Watcher para limpiar submarca cuando cambie la marca (opcional; con q-input ya no se dependen opciones)
+// Watcher para limpiar submarca cuando cambie la marca (no limpiar si estamos cargando datos de edición)
 watch(() => formulario.value.marca, (nuevaMarca, marcaAnterior) => {
+  if (cargandoEdicion.value) return
   if (marcaAnterior !== undefined && marcaAnterior !== nuevaMarca) {
     formulario.value.submarca = ''
   }
 })
 
-// Watcher para limpiar marca y submarca cuando cambie el tipo de vehículo (Nuevo/Seminuevo)
-watch(() => formulario.value.tipoVehiculo, () => {
+// Watcher para limpiar campos y abrir búsqueda de vehículo cuando cambie el tipo de vehículo (no limpiar si estamos cargando datos de edición)
+watch(() => formulario.value.tipoVehiculo, (nuevoValor) => {
+  if (cargandoEdicion.value) return
   formulario.value.marca = ''
   formulario.value.submarca = ''
+  formulario.value.modelo = ''
+  formulario.value.descripcionVehiculo = ''
+  formulario.value.version = ''
+  // Mostrar diálogo de Búsqueda de vehículo solo cuando se selecciona Seminuevo
+  if (nuevoValor === 'SE') {
+    abrirBusquedaVehiculo()
+  }
 })
+
+// --- Búsqueda de vehículo (diálogo cuando tipo es Seminuevo) ---
+const dialogBusquedaVehiculoOpen = ref(false)
+const busquedaAnio = ref('')
+const busquedaMarca = ref('')
+const busquedaSubtipo = ref('')
+const resultadosBusquedaVehiculo = ref([])
+const selectedVehiculoBusqueda = ref([])
+const busquedaVehiculoLoading = ref(false)
+const filterBusquedaVehiculo = ref('')
+
+// Reglas de validación para Año: obligatorio, 4 dígitos numéricos, entre 2023 y 2026
+const reglasBusquedaAnio = [
+  val => !!val || 'El año es obligatorio',
+  val => /^\d{4}$/.test(String(val || '').trim()) || 'Debe ser un valor numérico de 4 dígitos',
+  val => {
+    const n = parseInt(String(val || '').trim(), 10)
+    if (isNaN(n)) return true
+    return (n >= 2023 && n <= 2026) || 'El año debe estar entre 2023 y 2026'
+  }
+]
+
+// Habilita el botón Buscar solo si Año y Marca están capturados y el año es válido (2023-2026)
+const puedeBuscarVehiculo = computed(() => {
+  const anio = String(busquedaAnio.value || '').trim()
+  const marca = String(busquedaMarca.value || '').trim()
+  if (!anio || !marca) return false
+  if (!/^\d{4}$/.test(anio)) return false
+  const n = parseInt(anio, 10)
+  return n >= 2023 && n <= 2026
+})
+
+const columnasBusquedaVehiculo = [
+  { name: 'segmento', label: 'Segmento', field: 'segmento', align: 'left', sortable: true },
+  { name: 'marca', label: 'Marca', field: 'marca', align: 'left', sortable: true },
+  { name: 'subMarca', label: 'Sub tipo', field: 'subMarca', align: 'left', sortable: true },
+  { name: 'modelo', label: 'Año', field: 'modelo', align: 'left', sortable: true },
+  { name: 'descripcion', label: 'Descripción', field: 'descripcion', align: 'left', sortable: false },
+  { name: 'transmision', label: 'Transmisión', field: 'transmision', align: 'left', sortable: true }
+]
+
+// Listado plano de vehículos para búsqueda (segmento, marca, subTipo, modelo, descripcion, transmision, anio)
+const listadoVehiculosCompleto = computed(() => {
+  const lista = []
+  const marcas = { honda: 'Honda', acura: 'Acura' }
+  for (const [key, items] of Object.entries(submarcasPorMarca)) {
+    const marcaLabel = marcas[key] || key
+    for (const item of items) {
+      lista.push({
+        segmento: item.segmento,
+        marca: marcaLabel,
+        subTipo: item.categoria,
+        modelo: item.modelo,
+        descripcion: item.descripcion,
+        transmision: 'Automática',
+        anio: '2024'
+      })
+    }
+  }
+  return lista.sort((a, b) => a.modelo.localeCompare(b.modelo, 'es', { sensitivity: 'base' }))
+})
+
+async function ejecutarBusquedaVehiculo() {
+  const modelo = parseInt(String(busquedaAnio.value || '').trim(), 10)
+  const marca = String(busquedaMarca.value || '').trim()
+  const subtipo = String(busquedaSubtipo.value || '').trim() || null
+  if (isNaN(modelo) || modelo < 2023 || modelo > 2026 || !marca) return
+  busquedaVehiculoLoading.value = true
+  selectedVehiculoBusqueda.value = []
+  try {
+    const data = await catalogoVehiculosService.buscarVehiculos(modelo, marca, subtipo || undefined)
+    if (data.code === 0 && Array.isArray(data.vehiculos)) {
+      // Mapear response: subMarca/subTipo → Sub tipo, descripción → Descripción, transmisión → Transmisión, modelo → Año
+      resultadosBusquedaVehiculo.value = data.vehiculos.map((v, i) => {
+        const subMarcaVal = v.subMarca ?? v.SubMarca ?? v.subTipo ?? v.SubTipo ?? ''
+        return {
+          _rowKey: `vehiculo-${i}-${v.marca}-${subMarcaVal}-${(v.descripción ?? v.descripcion ?? '').slice(0, 30)}`,
+          segmento: v.segmento ?? '',
+          marca: v.marca ?? '',
+          subMarca: subMarcaVal,
+          subTipo: subMarcaVal,
+          modelo: v.modelo ?? '',
+          descripcion: v.descripción ?? v.descripcion ?? '',
+          transmision: v.transmisión ?? v.transmision ?? ''
+        }
+      })
+      if (data.vehiculos.length === 0) {
+        $q.notify({ type: 'info', message: 'No se encontraron vehículos con los criterios indicados.' })
+      }
+    } else {
+      resultadosBusquedaVehiculo.value = []
+      $q.notify({ type: 'warning', message: data.message || 'No se obtuvieron resultados.' })
+    }
+  } catch (err) {
+    resultadosBusquedaVehiculo.value = []
+    const msg = err.response?.data?.message || err.response?.data || err.message || 'Error al buscar vehículos.'
+    $q.notify({ type: 'negative', message: typeof msg === 'string' ? msg : 'Error al buscar vehículos.' })
+  } finally {
+    busquedaVehiculoLoading.value = false
+  }
+}
+
+function abrirBusquedaVehiculo() {
+  busquedaAnio.value = ''
+  busquedaMarca.value = ''
+  busquedaSubtipo.value = ''
+  filterBusquedaVehiculo.value = ''
+  resultadosBusquedaVehiculo.value = []
+  selectedVehiculoBusqueda.value = []
+  dialogBusquedaVehiculoOpen.value = true
+}
+
+function aceptarVehiculoSeleccionado() {
+  const selected = selectedVehiculoBusqueda.value[0]
+  if (!selected) return
+  const row = resultadosBusquedaVehiculo.value.find(r => r._rowKey === selected._rowKey) || selected
+  const submarcaVal = (row.subMarca ?? '').toString()
+  formulario.value.modelo = String(row.modelo ?? '')
+  formulario.value.marca = (row.marca ?? '').toString()
+  formulario.value.descripcionVehiculo = (row.descripcion ?? '').toString()
+  formulario.value.version = (row.descripcion ?? '').toString()
+  dialogBusquedaVehiculoOpen.value = false
+  nextTick(() => {
+    formulario.value.submarca = submarcaVal
+  })
+}
 
 const rows = ref([])
 
@@ -1370,6 +1667,7 @@ const calcularFechas = () => {
 const abrirDialog = () => {
   modoEdicion.value = false
   certificadoEditando.value = null
+  certificadoProcesado.value = false
   resetearFormulario(true) // Prellenar con fecha de hoy
   dialogOpen.value = true
 }
@@ -1377,7 +1675,9 @@ const abrirDialog = () => {
 // Función para editar un certificado (abrir diálogo en modo edición)
 const editarCertificado = async (row) => {
   modoEdicion.value = true
+  cargandoEdicion.value = true
   certificadoEditando.value = row.uid
+  certificadoProcesado.value = !!row.procesado
   
   // Limpiar estados de validación de contrato (no se valida en modo edición)
   errorContratoDuplicado.value = false
@@ -1387,10 +1687,7 @@ const editarCertificado = async (row) => {
     timeoutVerificacion = null
   }
   
-  // Guardar la submarca antes de asignar la marca (para evitar que el watcher la limpie)
-  const submarcaOriginal = row.submarca || ''
-  
-  // Poblar el formulario con los datos del certificado (marca y submarca como texto desde q-input)
+  // Poblar el formulario con los datos del certificado
   formulario.value = {
     titular: row.titular || '',
     numeroContrato: row.numeroContrato || '',
@@ -1400,13 +1697,19 @@ const editarCertificado = async (row) => {
     vigenteHasta: row.vigenteHasta ? formatDateForInput(row.vigenteHasta) : '',
     tipoVehiculo: row.tipoVehiculo || '',
     marca: row.marca || '',
-    submarca: submarcaOriginal,
+    submarca: row.submarca || '',
     modelo: row.modelo || '',
     numeroSerie: row.serie || row.numeroSerie || '',
+    descripcionVehiculo: row.descripcionVehiculo || '',
+    version: row.version || row.Version || '',
     usuario: row.usuario || '',
     creadoPor: row.creadoPor || '',
     estado: row.estado || 'Solicitado'
   }
+
+  nextTick(() => {
+    cargandoEdicion.value = false
+  })
 
   dialogOpen.value = true
 }
@@ -1499,6 +1802,7 @@ const cerrarDialog = () => {
   dialogOpen.value = false
   modoEdicion.value = false
   certificadoEditando.value = null
+  certificadoProcesado.value = false
   errorContratoDuplicado.value = false
   verificandoContrato.value = false
   resetearFormulario()
@@ -1521,6 +1825,8 @@ const resetearFormulario = (prellenarFechaHoy = false) => {
     submarca: '',
     modelo: '',
     numeroSerie: '',
+    descripcionVehiculo: '',
+    version: '',
     usuario: usuarioNombre,
     creadoPor: usuarioNombre,
     estado: 'Solicitado'
@@ -1653,7 +1959,8 @@ const enviarCertificado = async () => {
       marca: formulario.value.marca,
       submarca: formulario.value.submarca,
       modelo: formulario.value.modelo,
-      serie: formulario.value.numeroSerie
+      serie: formulario.value.numeroSerie,
+      version: formulario.value.version
     }
     
     // Agregar agenciaId si hay una agencia seleccionada
@@ -1750,9 +2057,11 @@ const actualizarCertificado = async () => {
       marca: formulario.value.marca,
       submarca: formulario.value.submarca,
       modelo: formulario.value.modelo,
-      serie: formulario.value.numeroSerie
+      serie: formulario.value.numeroSerie,
+      version: formulario.value.tipoVehiculo === 'SE' ? (formulario.value.version || '') : ''
     }
     
+    console.log('Payload modificar-certificado:', JSON.stringify(payload))
     // Enviar al API para actualizar
     const response = await certificadoService.actualizarCertificado(payload)
     

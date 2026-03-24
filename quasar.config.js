@@ -88,7 +88,7 @@ module.exports = configure(function (ctx) {
       config: {},
 
       // iconSet: 'material-icons', // Quasar icon set
-      // lang: 'en-US', // Quasar language pack
+      lang: 'es', // Quasar language pack (es: "Registros por página", "1-5 de 27")
 
       // For special cases outside of where the auto-import strategy can have an impact
       // (like functional components as one of the examples),
