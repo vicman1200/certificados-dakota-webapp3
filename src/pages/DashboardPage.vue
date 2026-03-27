@@ -80,13 +80,27 @@
 
         <template v-slot:body-cell-titular="props">
           <q-td :props="props">
-            <q-icon
-              v-if="props.row.procesado"
-              name="lock"
-              size="14px"
-              color="grey-7"
-              class="q-mr-xs"
-            />
+            <div class="row items-center no-wrap">
+              <q-btn
+                v-if="esAdmin && !props.row.procesado"
+                flat
+                dense
+                round
+                icon="delete"
+                size="sm"
+                color="red-6"
+                class="q-mr-xs"
+                @click.stop="confirmarBorrarCertificado(props.row)"
+              >
+                <q-tooltip>Borrar certificado</q-tooltip>
+              </q-btn>
+              <q-icon
+                v-if="props.row.procesado"
+                name="lock"
+                size="14px"
+                color="grey-7"
+                class="q-mr-xs"
+              />
             <a
               href="#"
               class="titular-link"
@@ -94,6 +108,21 @@
             >
               {{ props.value }}
             </a>
+            </div>
+          </q-td>
+        </template>
+
+        <template v-slot:body-cell-numeroContrato="props">
+          <q-td :props="props">
+            <a
+              v-if="esAdmin"
+              href="#"
+              class="titular-link"
+              @click.prevent="abrirEdicionContrato(props.row)"
+            >
+              {{ props.value || '' }}
+            </a>
+            <span v-else>{{ props.value || '' }}</span>
           </q-td>
         </template>
 
@@ -176,13 +205,16 @@
                   outlined
                   dense
                   stack-label
+                  mask="##########"
+                  maxlength="10"
                   :loading="verificandoContrato"
                   :rules="[
                     val => !!val || 'El número de contrato es requerido',
+                    val => /^\d{10}$/.test(String(val || '').trim()) || 'Debe tener exactamente 10 dígitos numéricos',
                     val => !errorContratoDuplicado || 'Este número de contrato ya existe'
                   ]"
                   lazy-rules
-                  hint="Escriba el número de contrato"
+                  hint="Escriba el número de contrato a 10 dígitos"
                   @update:model-value="verificarContratoDuplicado"
                 />
               </div>
@@ -452,6 +484,45 @@
             </q-card-actions>
           </q-form>
         </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Dialog para editar número de contrato (solo admin) -->
+    <q-dialog v-model="dialogEditarContratoOpen">
+      <q-card style="min-width: 260px; max-width: 45vw;">
+        <q-card-section>
+          <div class="row items-center justify-between">
+            <div class="text-h6">Editar número de contrato</div>
+            <q-btn flat round dense icon="close" @click="dialogEditarContratoOpen = false" />
+          </div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="contratoEditNumero"
+            label="Número de contrato"
+            outlined
+            dense
+            autofocus
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn
+            flat
+            label="Cerrar"
+            color="negative"
+            dense
+            @click="dialogEditarContratoOpen = false"
+          />
+          <q-btn
+            push
+            label="Guardar"
+            dense
+            :style="{ backgroundColor: '#ff8000', color: 'white' }"
+            :loading="guardandoContrato"
+            :disable="!contratoEditNumero || contratoEditNumero.trim() === ''"
+            @click="guardarEdicionContrato"
+          />
+        </q-card-actions>
       </q-card>
     </q-dialog>
 
@@ -821,6 +892,11 @@ const modoEdicion = ref(false)
 const cargandoEdicion = ref(false)
 const certificadoEditando = ref(null) // Guardar el uid del certificado que se está editando
 const certificadoProcesado = ref(false)
+// Edición de contrato (admin)
+const dialogEditarContratoOpen = ref(false)
+const contratoEditUid = ref(null)
+const contratoEditNumero = ref('')
+const guardandoContrato = ref(false)
 const dialogAgenciaOpen = ref(false)
 const filtroAgencia = ref('')
 const mostrarBotonCerrar = ref(false)
@@ -843,6 +919,60 @@ const filtrosSeleccionados = ref({
 const rolId = computed(() => {
   return authStore.rolId || authService.getRolId()
 })
+
+const esAdmin = computed(() => rolId.value === 1)
+
+async function confirmarBorrarCertificado(row) {
+  if (!esAdmin.value) return
+  const uid = row?.uid
+  if (!uid) return
+
+  $q.dialog({
+    title: 'Confirmación',
+    html: true,
+    message: `
+      <div>¿Confirmas borrar el certificado?</div>
+      <table style="margin-top: 12px; width: 100%; border-collapse: collapse; border: 1px solid #eeeeee; background: #fafafa;">
+        <tr style="background: #ffffff;">
+          <td style="padding: 4px 8px; width: 45%; color: rgba(0,0,0,0.7);">No Certificado</td>
+          <td style="padding: 4px 8px;"><b>${row?.noCertificado || ''}</b></td>
+        </tr>
+        <tr style="background: #f5f5f5;">
+          <td style="padding: 4px 8px; color: rgba(0,0,0,0.7);">No Contrato</td>
+          <td style="padding: 4px 8px;"><b>${row?.numeroContrato || ''}</b></td>
+        </tr>
+        <tr style="background: #ffffff;">
+          <td style="padding: 4px 8px; color: rgba(0,0,0,0.7);">Titular</td>
+          <td style="padding: 4px 8px;"><b>${row?.titular || ''}</b></td>
+        </tr>
+      </table>
+    `,
+    persistent: true,
+    cancel: {
+      label: 'Cancelar',
+      flat: true,
+      color: 'negative'
+    },
+    ok: {
+      label: 'Confirmar borrar',
+      push: true,
+      color: 'negative'
+    }
+  }).onOk(async () => {
+    try {
+      await certificadoService.borrarCertificado({ uid })
+      const idx = rows.value.findIndex(r => r.uid === uid)
+      if (idx !== -1) rows.value.splice(idx, 1)
+      $q.notify({ type: 'positive', message: 'Certificado borrado correctamente' })
+      if (modoEdicion.value && certificadoEditando.value === uid) {
+        cerrarDialog()
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.response?.data || err.message || 'Error al borrar certificado.'
+      $q.notify({ type: 'negative', message: typeof msg === 'string' ? msg : 'Error al borrar certificado.' })
+    }
+  })
+}
 
 // Obtener Rol del usuario
 const rol = computed(() => {
@@ -1410,6 +1540,63 @@ function aceptarVehiculoSeleccionado() {
   })
 }
 
+function abrirEdicionContrato(row) {
+  if (!esAdmin.value) return
+  contratoEditUid.value = row.uid
+  contratoEditNumero.value = row.numeroContrato || ''
+  dialogEditarContratoOpen.value = true
+}
+
+async function guardarEdicionContrato() {
+  if (!esAdmin.value) return
+  const uid = contratoEditUid.value
+  const numeroContrato = (contratoEditNumero.value || '').trim()
+  if (!uid || !numeroContrato) return
+
+  $q.dialog({
+    title: 'Confirmación',
+    message: '¿Deseas guardar el nuevo número de contrato?',
+    persistent: true,
+    cancel: {
+      label: 'Cancelar',
+      flat: true
+    },
+    ok: {
+      label: 'Guardar',
+      push: true,
+      style: { backgroundColor: '#ff8000', color: 'white' }
+    }
+  }).onOk(async () => {
+    guardandoContrato.value = true
+    try {
+      await certificadoService.editarContratoCertificado({
+        Uid: uid,
+        NumeroContrato: numeroContrato
+      })
+
+      const idx = rows.value.findIndex(r => r.uid === uid)
+      if (idx !== -1) {
+        rows.value[idx] = {
+          ...rows.value[idx],
+          numeroContrato
+        }
+      }
+
+      if (modoEdicion.value && certificadoEditando.value === uid) {
+        formulario.value.numeroContrato = numeroContrato
+      }
+
+      $q.notify({ type: 'positive', message: 'Contrato actualizado correctamente' })
+      dialogEditarContratoOpen.value = false
+    } catch (err) {
+      const msg = err.response?.data?.message || err.response?.data || err.message || 'Error al editar contrato.'
+      $q.notify({ type: 'negative', message: typeof msg === 'string' ? msg : 'Error al editar contrato.' })
+    } finally {
+      guardandoContrato.value = false
+    }
+  })
+}
+
 const rows = ref([])
 
 // Definición de columnas (basadas en el response del API)
@@ -1692,7 +1879,8 @@ const editarCertificado = async (row) => {
     titular: row.titular || '',
     numeroContrato: row.numeroContrato || '',
     fechaExpedicion: row.fechaExpedicion ? formatDateForInput(row.fechaExpedicion) : '',
-    aniosVigencia: calcularAniosVigencia(row.vigenteDesde, row.vigenteHasta),
+    // Asegurar que el valor exista dentro de las opciones del q-select (actualmente solo 2)
+    aniosVigencia: 2,
     vigenteDesde: row.vigenteDesde ? formatDateForInput(row.vigenteDesde) : '',
     vigenteHasta: row.vigenteHasta ? formatDateForInput(row.vigenteHasta) : '',
     tipoVehiculo: row.tipoVehiculo || '',
@@ -1845,8 +2033,11 @@ const validarCampos = () => {
   if (!formulario.value.titular || formulario.value.titular.trim() === '') {
     camposFaltantes.push('Titular')
   }
-  if (!formulario.value.numeroContrato || formulario.value.numeroContrato.trim() === '') {
+  const noContrato = (formulario.value.numeroContrato || '').trim()
+  if (!noContrato) {
     camposFaltantes.push('Número de contrato')
+  } else if (!/^\d{10}$/.test(noContrato)) {
+    camposFaltantes.push('Número de contrato (10 dígitos)')
   }
   if (!formulario.value.fechaExpedicion || formulario.value.fechaExpedicion.trim() === '') {
     camposFaltantes.push('Fecha expedición')

@@ -87,6 +87,34 @@ export const certificadoService = {
   },
 
   /**
+   * Edita el número de contrato de un certificado
+   * @param {{Uid: number, NumeroContrato: string}} payload
+   * @returns {Promise<any>}
+   */
+  async editarContratoCertificado(payload) {
+    try {
+      const response = await api.post('/edita-contrato-certificado', payload)
+      return response.data
+    } catch (error) {
+      throw error
+    }
+  },
+
+  /**
+   * Borra un certificado por uid
+   * @param {{uid: number}} payload
+   * @returns {Promise<any>}
+   */
+  async borrarCertificado(payload) {
+    try {
+      const response = await api.post('/borra-certificado', payload)
+      return response.data
+    } catch (error) {
+      throw error
+    }
+  },
+
+  /**
    * Verifica si un contrato existe
    * @param {string} noContrato - Número de contrato a verificar
    * @returns {Promise<{contratoExiste: boolean}>}
