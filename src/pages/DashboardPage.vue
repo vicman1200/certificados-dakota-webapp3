@@ -445,6 +445,7 @@
                   label="Modelo"
                   outlined
                   dense
+                  readonly
                   :rules="[val => !!val || 'El modelo es requerido']"
                   lazy-rules
                 />
@@ -1400,12 +1401,15 @@ watch(() => formulario.value.marca, (nuevaMarca, marcaAnterior) => {
   }
 })
 
+// Año calendario actual a 4 dígitos (modelo automático cuando tipo es Nuevo)
+const anioActualModelo = () => String(new Date().getFullYear())
+
 // Watcher para limpiar campos y abrir búsqueda de vehículo cuando cambie el tipo de vehículo (no limpiar si estamos cargando datos de edición)
 watch(() => formulario.value.tipoVehiculo, (nuevoValor) => {
   if (cargandoEdicion.value) return
   formulario.value.marca = ''
   formulario.value.submarca = ''
-  formulario.value.modelo = ''
+  formulario.value.modelo = nuevoValor === 'NU' ? anioActualModelo() : ''
   formulario.value.descripcionVehiculo = ''
   formulario.value.version = ''
   // Mostrar diálogo de Búsqueda de vehículo solo cuando se selecciona Seminuevo
@@ -1424,25 +1428,25 @@ const selectedVehiculoBusqueda = ref([])
 const busquedaVehiculoLoading = ref(false)
 const filterBusquedaVehiculo = ref('')
 
-// Reglas de validación para Año: obligatorio, 4 dígitos numéricos, entre 2023 y 2026
+// Reglas de validación para Año: obligatorio, 4 dígitos numéricos, entre 2020 y 2026
 const reglasBusquedaAnio = [
   val => !!val || 'El año es obligatorio',
   val => /^\d{4}$/.test(String(val || '').trim()) || 'Debe ser un valor numérico de 4 dígitos',
   val => {
     const n = parseInt(String(val || '').trim(), 10)
     if (isNaN(n)) return true
-    return (n >= 2023 && n <= 2026) || 'El año debe estar entre 2023 y 2026'
+    return (n >= 2020 && n <= 2026) || 'El año debe estar entre 2020 y 2026'
   }
 ]
 
-// Habilita el botón Buscar solo si Año y Marca están capturados y el año es válido (2023-2026)
+// Habilita el botón Buscar solo si Año y Marca están capturados y el año es válido (2020-2026)
 const puedeBuscarVehiculo = computed(() => {
   const anio = String(busquedaAnio.value || '').trim()
   const marca = String(busquedaMarca.value || '').trim()
   if (!anio || !marca) return false
   if (!/^\d{4}$/.test(anio)) return false
   const n = parseInt(anio, 10)
-  return n >= 2023 && n <= 2026
+  return n >= 2020 && n <= 2026
 })
 
 const columnasBusquedaVehiculo = [
@@ -1479,7 +1483,7 @@ async function ejecutarBusquedaVehiculo() {
   const modelo = parseInt(String(busquedaAnio.value || '').trim(), 10)
   const marca = String(busquedaMarca.value || '').trim()
   const subtipo = String(busquedaSubtipo.value || '').trim() || null
-  if (isNaN(modelo) || modelo < 2023 || modelo > 2026 || !marca) return
+  if (isNaN(modelo) || modelo < 2020 || modelo > 2026 || !marca) return
   busquedaVehiculoLoading.value = true
   selectedVehiculoBusqueda.value = []
   try {
