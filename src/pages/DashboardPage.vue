@@ -181,23 +181,34 @@
 
         <q-card-section class="q-pt-none">
           <q-form ref="formRef" @submit="guardarCertificado" class="q-gutter-md">
-            <!-- Titular y Número de contrato -->
-            <div class="row q-gutter-sm" style="display: flex; flex-wrap: nowrap;">
-              <div style="flex: 0 0 50%; max-width: 50%; padding-right: 8px;">
+            <!-- Nombre, apellidos y Número de contrato (tercios iguales) -->
+            <div class="row q-col-gutter-sm items-start">
+              <div class="col">
                 <q-input
-                  ref="titularRef"
-                  v-model="formulario.titular"
-                  label="Titular"
+                  ref="nombreTitularRef"
+                  v-model="formulario.nombreTitular"
+                  label="Nombre"
                   outlined
                   dense
-                  :rules="[val => !!val || 'El titular es requerido']"
+                  :rules="[val => !!val || 'El nombre es requerido']"
                   lazy-rules
-                  hint="Escriba el nombre completo del titular"
                   stack-label
                   autofocus
                 />
               </div>
-              <div style="flex: 0 0 35%; max-width: 35%;">
+              <div class="col">
+                <q-input
+                  ref="apellidosTitularRef"
+                  v-model="formulario.apellidosTitular"
+                  label="Apellidos"
+                  outlined
+                  dense
+                  :rules="[val => !!val || 'Los apellidos son requeridos']"
+                  lazy-rules
+                  stack-label
+                />
+              </div>
+              <div class="col">
                 <q-input
                   ref="numeroContratoRef"
                   v-model="formulario.numeroContrato"
@@ -445,8 +456,10 @@
                   label="Modelo"
                   outlined
                   dense
-                  readonly
-                  :rules="[val => !!val || 'El modelo es requerido']"
+                  :readonly="formulario.tipoVehiculo !== 'NU'"
+                  :mask="formulario.tipoVehiculo === 'NU' ? '####' : undefined"
+                  inputmode="numeric"
+                  :rules="reglasModelo"
                   lazy-rules
                 />
               </div>
@@ -1266,7 +1279,8 @@ const seleccionarTodasDivisiones = () => {
 
 // Refs para los campos del formulario
 const formRef = ref(null)
-const titularRef = ref(null)
+const nombreTitularRef = ref(null)
+const apellidosTitularRef = ref(null)
 const numeroContratoRef = ref(null)
 const fechaExpedicionRef = ref(null)
 const aniosVigenciaRef = ref(null)
@@ -1278,7 +1292,8 @@ const numeroSerieRef = ref(null)
 
 // Formulario para nuevo certificado
 const formulario = ref({
-  titular: '',
+  nombreTitular: '',
+  apellidosTitular: '',
   numeroContrato: '',
   fechaExpedicion: '',
   aniosVigencia: null,
@@ -1295,6 +1310,38 @@ const formulario = ref({
   creadoPor: '',
   estado: 'Solicitado'
 })
+
+function construirTitularDesdeForm(f) {
+  const n = (f?.nombreTitular || '').trim()
+  const a = (f?.apellidosTitular || '').trim()
+  return [n, a].filter(Boolean).join(' ')
+}
+
+function descomponerTitularParaForm(row) {
+  const titularRaw = (row?.titular || '').trim()
+  const nom = row?.nombre ?? row?.Nombre
+  const ape = row?.apellidos ?? row?.Apellidos
+
+  const nombreCampo = nom != null ? String(nom).trim() : ''
+  const apellidosCampo = ape != null ? String(ape).trim() : ''
+
+  // Si viene nombre/apellidos por campos, usarlos... pero si "titular" trae más apellidos,
+  // preferir lo que se pueda inferir del titular (ej. "MANUEL GARCIA F" vs apellidos "GARCIA").
+  if (nombreCampo) {
+    if (titularRaw && titularRaw.toLowerCase().startsWith(nombreCampo.toLowerCase() + ' ')) {
+      const apellidosDesdeTitular = titularRaw.slice(nombreCampo.length).trim()
+      if (apellidosDesdeTitular && apellidosDesdeTitular.length > apellidosCampo.length) {
+        return { nombre: nombreCampo, apellidos: apellidosDesdeTitular }
+      }
+    }
+    return { nombre: nombreCampo, apellidos: apellidosCampo }
+  }
+
+  if (!titularRaw) return { nombre: '', apellidos: '' }
+  const i = titularRaw.indexOf(' ')
+  if (i === -1) return { nombre: titularRaw, apellidos: '' }
+  return { nombre: titularRaw.slice(0, i).trim(), apellidos: titularRaw.slice(i + 1).trim() }
+}
 
 // Opciones para años de vigencia
 const opcionesAnios = [ 
@@ -1403,6 +1450,25 @@ watch(() => formulario.value.marca, (nuevaMarca, marcaAnterior) => {
 
 // Año calendario actual a 4 dígitos (modelo automático cuando tipo es Nuevo)
 const anioActualModelo = () => String(new Date().getFullYear())
+
+// Reglas del campo Modelo: en Nuevo, año a 4 dígitos = año actual o anterior; en Seminuevo, obligatorio (valor desde búsqueda)
+const reglasModelo = computed(() => {
+  const tipo = formulario.value.tipoVehiculo
+  if (tipo === 'NU') {
+    const y = new Date().getFullYear()
+    const yAnt = y - 1
+    return [
+      val => !!val || 'El modelo es requerido',
+      val => /^\d{4}$/.test(String(val || '').trim()) || 'Debe ser un número de 4 dígitos',
+      val => {
+        const n = parseInt(String(val || '').trim(), 10)
+        if (isNaN(n)) return 'Debe ser un año válido'
+        return (n === y || n === yAnt) || `Solo se permite el año ${y} o ${yAnt}`
+      }
+    ]
+  }
+  return [val => !!val || 'El modelo es requerido']
+})
 
 // Watcher para limpiar campos y abrir búsqueda de vehículo cuando cambie el tipo de vehículo (no limpiar si estamos cargando datos de edición)
 watch(() => formulario.value.tipoVehiculo, (nuevoValor) => {
@@ -1879,8 +1945,10 @@ const editarCertificado = async (row) => {
   }
   
   // Poblar el formulario con los datos del certificado
+  const { nombre: nombreEd, apellidos: apellidosEd } = descomponerTitularParaForm(row)
   formulario.value = {
-    titular: row.titular || '',
+    nombreTitular: nombreEd,
+    apellidosTitular: apellidosEd,
     numeroContrato: row.numeroContrato || '',
     fechaExpedicion: row.fechaExpedicion ? formatDateForInput(row.fechaExpedicion) : '',
     // Asegurar que el valor exista dentro de las opciones del q-select (actualmente solo 2)
@@ -2006,7 +2074,8 @@ const resetearFormulario = (prellenarFechaHoy = false) => {
   const usuarioNombre = userInfo.usuario || userInfo.nombre || ''
   
   formulario.value = {
-    titular: '',
+    nombreTitular: '',
+    apellidosTitular: '',
     numeroContrato: '',
     fechaExpedicion: prellenarFechaHoy ? obtenerFechaHoy() : '',
     aniosVigencia: null,
@@ -2034,8 +2103,11 @@ const validarCampos = () => {
   const camposFaltantes = []
   
   // Validar cada campo usando las refs
-  if (!formulario.value.titular || formulario.value.titular.trim() === '') {
-    camposFaltantes.push('Titular')
+  if (!formulario.value.nombreTitular || formulario.value.nombreTitular.trim() === '') {
+    camposFaltantes.push('Nombre')
+  }
+  if (!formulario.value.apellidosTitular || formulario.value.apellidosTitular.trim() === '') {
+    camposFaltantes.push('Apellidos')
   }
   const noContrato = (formulario.value.numeroContrato || '').trim()
   if (!noContrato) {
@@ -2060,6 +2132,18 @@ const validarCampos = () => {
   }
   if (!formulario.value.modelo || formulario.value.modelo.trim() === '') {
     camposFaltantes.push('Modelo')
+  } else if (formulario.value.tipoVehiculo === 'NU') {
+    const val = String(formulario.value.modelo || '').trim()
+    const y = new Date().getFullYear()
+    const yAnt = y - 1
+    if (!/^\d{4}$/.test(val)) {
+      camposFaltantes.push('Modelo (año de 4 dígitos)')
+    } else {
+      const n = parseInt(val, 10)
+      if (!isNaN(n) && n !== y && n !== yAnt) {
+        camposFaltantes.push(`Modelo (solo ${y} o ${yAnt})`)
+      }
+    }
   }
   if (!formulario.value.numeroSerie || formulario.value.numeroSerie.trim() === '') {
     camposFaltantes.push('No. de serie')
@@ -2142,10 +2226,24 @@ const enviarCertificado = async () => {
       return `${fecha}T00:00:00`
     }
     
-    // Crear el payload según la especificación
+    const nombreTrim = (formulario.value.nombreTitular || '').trim()
+    const apellidosTrim = (formulario.value.apellidosTitular || '').trim()
+    const titularConcat = [nombreTrim, apellidosTrim].filter(Boolean).join(' ')
+
+    // Crear el payload según la especificación (crea-certificado / InsertarCertificado)
     const payload = {
       creadoPor: creadoPorEmail,
-      titular: formulario.value.titular,
+      titular: titularConcat,
+      nombre: nombreTrim,
+      apellidos: apellidosTrim,
+      // Compatibilidad backend (si el DTO usa PascalCase)
+      Nombre: nombreTrim,
+      Apellidos: apellidosTrim,
+      // Compatibilidad backend (si el DTO usa otros nombres)
+      nombreTitular: nombreTrim,
+      apellidosTitular: apellidosTrim,
+      NombreTitular: nombreTrim,
+      ApellidosTitular: apellidosTrim,
       numeroContrato: formulario.value.numeroContrato,
       fechaExpedicion: formatearFechaISO(formulario.value.fechaExpedicion),
       vigenteDesde: formatearFechaISO(formulario.value.vigenteDesde),
@@ -2157,6 +2255,8 @@ const enviarCertificado = async () => {
       serie: formulario.value.numeroSerie,
       version: formulario.value.version
     }
+    
+    console.log('Payload crea-certificado:', JSON.stringify(payload))
     
     // Agregar agenciaId si hay una agencia seleccionada
     if (agenciaSeleccionada && agenciaSeleccionada.agenciaId) {
@@ -2171,6 +2271,10 @@ const enviarCertificado = async () => {
       // Agregar el certificado al array de rows con Status y polizaStatusId
       const nuevoCertificado = {
         ...response.certificado,
+        // Preservar datos aunque el backend no los regrese
+        nombre: nombreTrim,
+        apellidos: apellidosTrim,
+        version: payload.version || '',
         numeroContrato: formulario.value.numeroContrato, // Asegurar que se incluya
         tipoVehiculo: formulario.value.tipoVehiculo, // Asegurar que se incluya
         polizaStatus: 'Solicitado',
@@ -2238,12 +2342,26 @@ const actualizarCertificado = async () => {
     const certificadoActual = rows.value.find(r => r.uid === certificadoEditando.value)
     const noCertificado = certificadoActual?.noCertificado || ''
     
+    const titularMod = construirTitularDesdeForm(formulario.value)
+    const nombreTrim = (formulario.value.nombreTitular || '').trim()
+    const apellidosTrim = (formulario.value.apellidosTitular || '').trim()
+
     // Crear el payload para actualización
     const payload = {
       uid: certificadoEditando.value,
       noCertificado: noCertificado,
       modificadoPor: modificadoPorEmail,
-      titular: formulario.value.titular,
+      titular: titularMod,
+      nombre: nombreTrim,
+      apellidos: apellidosTrim,
+      // Compatibilidad backend (si el DTO usa PascalCase)
+      Nombre: nombreTrim,
+      Apellidos: apellidosTrim,
+      // Compatibilidad backend (si el DTO usa otros nombres)
+      nombreTitular: nombreTrim,
+      apellidosTitular: apellidosTrim,
+      NombreTitular: nombreTrim,
+      ApellidosTitular: apellidosTrim,
       numeroContrato: formulario.value.numeroContrato,
       fechaExpedicion: formatearFechaISO(formulario.value.fechaExpedicion),
       vigenteDesde: formatearFechaISO(formulario.value.vigenteDesde),
@@ -2268,7 +2386,9 @@ const actualizarCertificado = async () => {
         // Actualizar el row con los datos del formulario (ya formateados)
         rows.value[index] = {
           ...rows.value[index], // Mantener datos existentes
-          titular: formulario.value.titular,
+          titular: titularMod,
+          nombre: nombreTrim,
+          apellidos: apellidosTrim,
           numeroContrato: formulario.value.numeroContrato, // Incluir número de contrato
           fechaExpedicion: formatearFechaISO(formulario.value.fechaExpedicion),
           vigenteDesde: formatearFechaISO(formulario.value.vigenteDesde),
@@ -2279,7 +2399,9 @@ const actualizarCertificado = async () => {
           modelo: formulario.value.modelo,
           serie: formulario.value.numeroSerie,
           // Si la respuesta incluye un certificado actualizado, usar esos datos
-          ...(response.certificado || {})
+          ...(response.certificado || {}),
+          // Preservar versión si el backend la devuelve vacía/no la devuelve
+          version: (response.certificado?.version ?? response.certificado?.Version) || payload.version || ''
         }
       }
       
