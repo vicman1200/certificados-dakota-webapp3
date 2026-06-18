@@ -1451,11 +1451,12 @@ watch(() => formulario.value.marca, (nuevaMarca, marcaAnterior) => {
 // Año calendario actual a 4 dígitos (modelo automático cuando tipo es Nuevo)
 const anioActualModelo = () => String(new Date().getFullYear())
 
-// Reglas del campo Modelo: en Nuevo, año a 4 dígitos = año actual o anterior; en Seminuevo, obligatorio (valor desde búsqueda)
+// Reglas del campo Modelo: en Nuevo, año a 4 dígitos = año siguiente, actual o anterior; en Seminuevo, obligatorio (valor desde búsqueda)
 const reglasModelo = computed(() => {
   const tipo = formulario.value.tipoVehiculo
   if (tipo === 'NU') {
     const y = new Date().getFullYear()
+    const ySig = y + 1
     const yAnt = y - 1
     return [
       val => !!val || 'El modelo es requerido',
@@ -1463,7 +1464,7 @@ const reglasModelo = computed(() => {
       val => {
         const n = parseInt(String(val || '').trim(), 10)
         if (isNaN(n)) return 'Debe ser un año válido'
-        return (n === y || n === yAnt) || `Solo se permite el año ${y} o ${yAnt}`
+        return (n === ySig || n === y || n === yAnt) || `Solo se permite el año ${ySig}, ${y} o ${yAnt}`
       }
     ]
   }
@@ -2135,13 +2136,14 @@ const validarCampos = () => {
   } else if (formulario.value.tipoVehiculo === 'NU') {
     const val = String(formulario.value.modelo || '').trim()
     const y = new Date().getFullYear()
+    const ySig = y + 1
     const yAnt = y - 1
     if (!/^\d{4}$/.test(val)) {
       camposFaltantes.push('Modelo (año de 4 dígitos)')
     } else {
       const n = parseInt(val, 10)
-      if (!isNaN(n) && n !== y && n !== yAnt) {
-        camposFaltantes.push(`Modelo (solo ${y} o ${yAnt})`)
+      if (!isNaN(n) && n !== ySig && n !== y && n !== yAnt) {
+        camposFaltantes.push(`Modelo (solo ${ySig}, ${y} o ${yAnt})`)
       }
     }
   }
