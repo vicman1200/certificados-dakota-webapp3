@@ -16,7 +16,7 @@
         <template v-slot:top-left>
           <div class="row q-gutter-md items-center">
             <q-btn
-              :style="{ backgroundColor: '#ff8000', color: 'white' }"
+              :style="{ backgroundColor: '#f44336', color: 'white' }"
               push
               icon="add"
               label="Nuevo certificado"
@@ -41,10 +41,11 @@
               stack-label
             />
             <q-btn
-              color="primary"
+              :style="{ backgroundColor: '#f44336', color: 'white' }"
               icon="search"
               label="Buscar"
               dense
+              push
               :disable="rolId === 2 && (!filtroFechaDesde || !filtroFechaHasta)"
               @click="manejarBusqueda"
             />
@@ -66,7 +67,7 @@
               </template>
             </q-input>
             <q-btn
-              color="primary"
+              :style="{ backgroundColor: '#f44336', color: 'white' }"
               icon="file_download"
               dense
               push
@@ -174,7 +175,7 @@
 
     <!-- Dialog para nuevo certificado o modificación -->
     <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 650px; max-width: 650px;">
+      <q-card class="certificado-dialog" style="min-width: 650px; max-width: 650px;">
         <q-card-section>
           <div class="text-h6">{{ modoEdicion ? 'Modificación de certificado' : 'Nuevo certificado' }}</div>
         </q-card-section>
@@ -489,7 +490,7 @@
               <q-btn
                 type="submit"
                 :label="modoEdicion ? 'Actualizar' : 'Guardar'"
-                :style="{ backgroundColor: '#ff8000', color: 'white' }"
+                :style="{ backgroundColor: '#f44336', color: 'white' }"
                 dense
                 push
                 :loading="guardando"
@@ -581,7 +582,7 @@
                 dense
                 clearable
                 stack-label
-                placeholder="Ej. Honda"
+                placeholder="Ej. BYD"
                 :rules="[val => !!val || 'La marca es obligatoria']"
                 @keyup.enter="puedeBuscarVehiculo && ejecutarBusquedaVehiculo()"
               />
@@ -603,9 +604,10 @@
             <div class="col-12">
               <q-btn
                 label="Buscar"
-                color="primary"
+                :style="{ backgroundColor: '#f44336', color: 'white' }"
                 class="full-width"
                 no-caps
+                push
                 :disable="!puedeBuscarVehiculo"
                 :loading="busquedaVehiculoLoading"
                 @click="ejecutarBusquedaVehiculo"
@@ -1344,43 +1346,34 @@ function descomponerTitularParaForm(row) {
 }
 
 // Opciones para años de vigencia
-const opcionesAnios = [ 
-  { label: '2', value: 2 }
+const opcionesAnios = [
+  { label: '1', value: 1 }
 ]
 
 // Opciones para tipo de vehículo
 const opcionesTipoVehiculo = [
-  { label: 'Nuevo', value: 'NU' },
-  { label: 'Seminuevo', value: 'SE' }
+  { label: 'Nuevo', value: 'NU' }
 ]
 
 // Opciones para marca
 const opcionesMarcas = [
-  { label: 'Honda', value: 'Honda' },
-  { label: 'Acura', value: 'Acura' }
+  { label: 'BYD', value: 'BYD' }
 ]
 
 // Estructura de submarcas por marca
 const submarcasPorMarca = {
-  honda: [
-    { modelo: 'City', segmento: 'Sedán compacto', categoria: 'Automóvil', descripcion: 'Sedán práctico y eficiente, ideal para ciudad.' },
-    { modelo: 'Civic', segmento: 'Sedán mediano', categoria: 'Automóvil', descripcion: 'Sedán con enfoque en tecnología, seguridad y desempeño.' },
-    { modelo: 'Civic Hybrid', segmento: 'Sedán mediano híbrido', categoria: 'Automóvil', descripcion: 'Versión híbrida del Civic con mejor eficiencia.' },
-    { modelo: 'Accord', segmento: 'Sedán grande', categoria: 'Automóvil', descripcion: 'Sedán premium con alto nivel de confort.' },
-    { modelo: 'Accord Hybrid', segmento: 'Sedán grande híbrido', categoria: 'Automóvil', descripcion: 'Versión híbrida del Accord orientada a eficiencia.' },
-    { modelo: 'BR-V', segmento: 'SUV compacta de 3 filas', categoria: 'SUV', descripcion: 'SUV familiar con espacio para 7 pasajeros.' },
-    { modelo: 'HR-V', segmento: 'SUV compacta', categoria: 'SUV', descripcion: 'SUV juvenil, enfocada en ciudad y eficiencia.' },
-    { modelo: 'CR-V', segmento: 'SUV mediana', categoria: 'SUV', descripcion: 'SUV muy popular por su balance entre espacio y equipamiento.' },
-    { modelo: 'CR-V Hybrid', segmento: 'SUV mediana híbrida', categoria: 'SUV', descripcion: 'Versión híbrida de la CR-V con mejor rendimiento.' },
-    { modelo: 'Odyssey', segmento: 'Minivan', categoria: 'Minivan', descripcion: 'Minivan familiar con espacio y comodidad.' },
-    { modelo: 'Pilot', segmento: 'SUV grande', categoria: 'SUV', descripcion: 'SUV de 3 filas, ideal para familias y viajes largos.' }
-  ],
-  acura: [
-    { modelo: 'INTEGRA', segmento: 'Liftback deportivo premium', categoria: 'Automóvil', descripcion: 'Liftback deportivo con enfoque en manejo y diseño.' },
-    { modelo: 'TLX', segmento: 'Sedán deportivo premium', categoria: 'Automóvil', descripcion: 'Sedán de lujo orientado a desempeño.' },
-    { modelo: 'ADX', segmento: 'SUV compacta premium', categoria: 'SUV', descripcion: 'SUV premium moderna enfocada a un público joven.' },
-    { modelo: 'RDX', segmento: 'SUV mediana premium', categoria: 'SUV', descripcion: 'Crossover deportiva con diseño y tecnología de lujo.' },
-    { modelo: 'MDX', segmento: 'SUV grande premium de 3 filas', categoria: 'SUV', descripcion: 'SUV insignia de Acura con alto nivel de lujo.' }
+  byd: [
+    { modelo: 'Dolphin Mini', anio: 2026 },
+    { modelo: 'Yuan Pro EV', anio: 2026 },
+    { modelo: 'Seal EV', anio: 2026 },
+    { modelo: 'Sealion 7 EV', anio: 2026 },
+    { modelo: 'Atto 8', anio: 2026 },
+    { modelo: 'King DM-i', anio: 2026 },
+    { modelo: 'Song Pro DM-i', anio: 2026 },
+    { modelo: 'Song Plus DM-i', anio: 2026 },
+    { modelo: 'Yuan Pro DM-i', anio: 2026 },
+    { modelo: 'Shark DMO', anio: 2026 },
+    { modelo: 'M9', anio: 2026 }
   ]
 }
 
@@ -1440,6 +1433,17 @@ const crearNuevaSubmarca = (val, done) => {
   }
 }
 
+// Watcher para asignar el año del modelo al seleccionar una submarca
+watch(() => formulario.value.submarca, (submarca) => {
+  if (cargandoEdicion.value || !submarca || formulario.value.tipoVehiculo !== 'NU') return
+
+  const marcaKey = (formulario.value.marca || '').toLowerCase()
+  const item = (submarcasPorMarca[marcaKey] || []).find(s => s.modelo === submarca)
+  if (item?.anio) {
+    formulario.value.modelo = String(item.anio)
+  }
+})
+
 // Watcher para limpiar submarca cuando cambie la marca (no limpiar si estamos cargando datos de edición)
 watch(() => formulario.value.marca, (nuevaMarca, marcaAnterior) => {
   if (cargandoEdicion.value) return
@@ -1474,7 +1478,7 @@ const reglasModelo = computed(() => {
 // Watcher para limpiar campos y abrir búsqueda de vehículo cuando cambie el tipo de vehículo (no limpiar si estamos cargando datos de edición)
 watch(() => formulario.value.tipoVehiculo, (nuevoValor) => {
   if (cargandoEdicion.value) return
-  formulario.value.marca = ''
+  formulario.value.marca = nuevoValor === 'NU' ? 'BYD' : ''
   formulario.value.submarca = ''
   formulario.value.modelo = nuevoValor === 'NU' ? anioActualModelo() : ''
   formulario.value.descripcionVehiculo = ''
@@ -1528,18 +1532,18 @@ const columnasBusquedaVehiculo = [
 // Listado plano de vehículos para búsqueda (segmento, marca, subTipo, modelo, descripcion, transmision, anio)
 const listadoVehiculosCompleto = computed(() => {
   const lista = []
-  const marcas = { honda: 'Honda', acura: 'Acura' }
+  const marcas = { byd: 'BYD' }
   for (const [key, items] of Object.entries(submarcasPorMarca)) {
     const marcaLabel = marcas[key] || key
     for (const item of items) {
       lista.push({
-        segmento: item.segmento,
+        segmento: '',
         marca: marcaLabel,
-        subTipo: item.categoria,
+        subTipo: item.modelo,
         modelo: item.modelo,
-        descripcion: item.descripcion,
+        descripcion: item.modelo,
         transmision: 'Automática',
-        anio: '2024'
+        anio: String(item.anio)
       })
     }
   }
@@ -1927,6 +1931,7 @@ const abrirDialog = () => {
   certificadoEditando.value = null
   certificadoProcesado.value = false
   resetearFormulario(true) // Prellenar con fecha de hoy
+  calcularFechas()
   dialogOpen.value = true
 }
 
@@ -1952,8 +1957,7 @@ const editarCertificado = async (row) => {
     apellidosTitular: apellidosEd,
     numeroContrato: row.numeroContrato || '',
     fechaExpedicion: row.fechaExpedicion ? formatDateForInput(row.fechaExpedicion) : '',
-    // Asegurar que el valor exista dentro de las opciones del q-select (actualmente solo 2)
-    aniosVigencia: 2,
+    aniosVigencia: 1,
     vigenteDesde: row.vigenteDesde ? formatDateForInput(row.vigenteDesde) : '',
     vigenteHasta: row.vigenteHasta ? formatDateForInput(row.vigenteHasta) : '',
     tipoVehiculo: row.tipoVehiculo || '',
@@ -2079,11 +2083,11 @@ const resetearFormulario = (prellenarFechaHoy = false) => {
     apellidosTitular: '',
     numeroContrato: '',
     fechaExpedicion: prellenarFechaHoy ? obtenerFechaHoy() : '',
-    aniosVigencia: null,
+    aniosVigencia: prellenarFechaHoy ? 1 : null,
     vigenteDesde: '',
     vigenteHasta: '',
-    tipoVehiculo: '',
-    marca: '',
+    tipoVehiculo: prellenarFechaHoy ? 'NU' : '',
+    marca: prellenarFechaHoy ? 'BYD' : '',
     submarca: '',
     modelo: '',
     numeroSerie: '',
@@ -2192,7 +2196,9 @@ const guardarCertificado = async () => {
     },
     ok: {
       label: 'Aceptar',
-      push: true
+      push: true,
+      color: 'negative',
+      textColor: 'white'
     },
     persistent: true
   }).onOk(async () => {
@@ -2453,7 +2459,8 @@ const descargarCertificado = async (row) => {
     persistent: true,
     ok: {
       label: 'Generar',
-      color: 'primary',
+      color: 'negative',
+      textColor: 'white',
       push: true
     },
     cancel: {
@@ -2769,6 +2776,22 @@ onMounted(async () => {
 
 .titular-link:active {
   color: #cc3700;
+}
+
+/* Estilos del diálogo Nuevo certificado */
+.certificado-dialog :deep(.q-field--focused .q-field__label),
+.certificado-dialog :deep(.q-field--highlighted .q-field__label) {
+  color: #757575 !important;
+}
+
+.certificado-dialog :deep(.q-field--focused .q-field__control:before),
+.certificado-dialog :deep(.q-field--focused .q-field__control:after) {
+  border-color: #757575 !important;
+}
+
+.certificado-dialog :deep(.q-field--focused .q-field__marginal),
+.certificado-dialog :deep(.q-field--focused .q-icon) {
+  color: #757575 !important;
 }
 
 /* Estilos para el chip de Status */

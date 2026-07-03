@@ -2,7 +2,7 @@
   "name": "bradial-certs-webapp",
   "version": "0.0.1",
   "description": "Genera certificados Bradial",
-  "productName": "Bradial App",
+  "productName": "Dakota Certificados",
   "author": "Victor Labastida <victor.labastida31@gmail.com>",
   "private": true,
   "scripts": {

@@ -50,6 +50,11 @@ module.exports = configure(function (ctx) {
     build: {
       vueRouterMode: 'hash', // available values: 'hash', 'history'
 
+      htmlVariables: {
+        productName: 'Dakota Certificados',
+        productDescription: 'Genera certificados Dakota'
+      },
+
       // transpile: false,
       // publicPath: '/',
 
@@ -143,9 +148,9 @@ module.exports = configure(function (ctx) {
       
 
       manifest: {
-        name: `Bradial App`,
-        short_name: `Bradial App`,
-        description: `Genera certificados Bradial`,
+        name: `Dakota Certificados`,
+        short_name: `Dakota Certificados`,
+        description: `Genera certificados Dakota`,
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#ffffff',

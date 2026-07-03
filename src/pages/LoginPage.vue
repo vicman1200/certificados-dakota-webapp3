@@ -1,23 +1,23 @@
 <template>
   <div class="login-container">
-    <q-card class="login-card q-pa-xl" flat bordered>
+    <q-card class="login-card q-pa-xl" flat>
       <!-- Logo -->
       <div class="logo-section text-center q-mb-xl">
         <img 
-          src="https://bradial.mx/imagenes/logo/logo100.png" 
-          alt="Bradial Logo" 
+          src="https://dakotamobility.com.mx/imagenes/logo/logoconletra.png" 
+          alt="Dakota Mobility Logo" 
           class="logo-image"
         />
-        <div class="text-h4 text-weight-bold text-primary q-mt-md">
+        <div class="login-title text-h4 text-weight-bold q-mt-md">
           Iniciar Sesión
         </div>
-        <div class="text-subtitle2 text-grey-7 q-mt-xs">
+        <div class="login-subtitle text-subtitle2 q-mt-xs">
           Ingresa tus credenciales para continuar
         </div>
       </div>
 
       <!-- Formulario de Login -->
-      <q-form @submit.prevent="onSubmit" class="q-gutter-md">
+      <q-form @submit.prevent="onSubmit" class="login-form q-gutter-md">
         <!-- Campo Usuario -->
         <q-input
           v-model="usuario"
@@ -76,9 +76,10 @@
           <q-btn
             type="submit"
             label="Iniciar Sesión"
-            color="primary"
+            unelevated
+            no-caps
             size="md"
-            class="full-width"
+            class="login-btn full-width"
             :loading="loading"
             :disable="loading"
           >
@@ -191,48 +192,67 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #000000;
-  background-image: url('https://bradial.mx/imagenes/carrucel/invault.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-color: #bdbdbd;
   padding: 16px;
-  position: relative;
-}
-
-.login-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  z-index: 0;
-}
-
-.login-container > * {
-  position: relative;
-  z-index: 1;
 }
 
 .login-card {
   width: 100%;
   max-width: 400px;
   border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
 }
 
 .logo-section {
   background-color: #000000;
   padding: 24px;
-  margin: -24px -24px 24px -24px;
-  border-radius: 12px 12px 0 0;
+  margin: -48px -48px 24px -48px;
+  border-radius: 0;
+}
+
+.login-title {
+  color: #ffffff;
+}
+
+.login-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.login-form {
+  color: #000000;
+}
+
+.login-form :deep(.q-field__label),
+.login-form :deep(.q-field__native),
+.login-form :deep(.q-icon) {
+  color: #000000;
+}
+
+.login-form :deep(.q-field--focused .q-field__label),
+.login-form :deep(.q-field--focused .q-field__control:before) {
+  color: #f44336;
+  border-color: #f44336;
+}
+
+.login-btn {
+  background-color: #f44336 !important;
+  color: #ffffff !important;
+  border-radius: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.login-btn:hover {
+  background-color: #e53935 !important;
 }
 
 .logo-image {
-  height: 80px;
+  height: 64px;
   width: auto;
-  max-width: 150px;
+  max-width: 280px;
   object-fit: contain;
   margin-bottom: 16px;
 }
@@ -254,8 +274,8 @@ onMounted(() => {
   }
   
   .logo-image {
-    height: 60px;
-    max-width: 120px;
+    height: 48px;
+    max-width: 220px;
   }
 }
 </style>

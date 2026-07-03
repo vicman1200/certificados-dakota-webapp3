@@ -13,26 +13,26 @@
         />
         -->
 
-        <q-toolbar-title class="row items-center" style="gap: 8px;">
-          <img 
-            src="https://bradial.mx/imagenes/logo/logo100.png" 
-            alt="Bradial Logo" 
-            style="height: 40px; max-width: 150px; cursor: pointer;"
-            @click="navegarADashboard"
-          />
+        <q-toolbar-title class="row items-center no-wrap" style="gap: 10px;">
           <q-btn
             v-if="route.path === '/usuario' || route.path.includes('/usuario')"
             flat
             dense
             icon="arrow_back"
             @click="navegarADashboard"
-            style="color: #ff8000;"
+            style="color: #ffffff;"
           />
-          <span 
-            style="color: #ff8000 !important; cursor: pointer;"
+          <img
+            src="~assets/logorojo.png"
+            alt="Dakota Mobility"
+            class="toolbar-logo"
+            @click="navegarADashboard"
+          />
+          <span
+            class="toolbar-title-text"
             @click="navegarADashboard"
           >
-            {{ tituloPagina }}
+            Dakotamobility - Gestión de certificados
           </span>
         </q-toolbar-title>
 
@@ -618,14 +618,6 @@ export default defineComponent({
       return rolId === 1
     })
 
-    // Título dinámico según la ruta actual
-    const tituloPagina = computed(() => {
-      if (route.path === '/usuario' || route.path.includes('/usuario')) {
-        return 'Gestión de Usuarios'
-      }
-      return 'Gestión de Certificados'
-    })
-
     // Verificar autenticación al montar el componente
     onMounted(() => {
       authStore.checkAuth()
@@ -762,14 +754,29 @@ export default defineComponent({
       agenciasFiltradas,
       mostrarBotonCerrar,
       abrirDialogUsuarioInfo,
-      dialogUsuarioInfo,
-      tituloPagina
+      dialogUsuarioInfo
     }
   }
 })
 </script>
 
 <style scoped>
+.toolbar-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  cursor: pointer;
+  display: block;
+}
+
+.toolbar-title-text {
+  color: #ffffff !important;
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .agencia-link {
   text-decoration: underline;
   transition: opacity 0.2s;

@@ -6,13 +6,13 @@ import axios from 'axios'
 const getBaseURL = () => {
   if (process.env.DEV) {
     // Desarrollo: API local
-    return 'http://localhost:5045/api'
+    return 'https://localhost:7254/api'
   } else if (process.env.PROD) {
     // Producción: API en Azure
-    return 'https://bradial-webapi.azurewebsites.net/api'
+    return 'https://certificados-dakota-api-dvffafgybmfabngw.mexicocentral-01.azurewebsites.net/api'
   }
   // Fallback (por si acaso)
-  return 'http://localhost:5045/api'
+  return 'https://localhost:7254/api'
 }
 
 // Crear instancia de axios con configuración base
