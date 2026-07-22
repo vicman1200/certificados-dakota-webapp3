@@ -175,332 +175,482 @@
 
     <!-- Dialog para nuevo certificado o modificación -->
     <q-dialog v-model="dialogOpen" persistent>
-      <q-card class="certificado-dialog" style="min-width: 650px; max-width: 650px;">
-        <q-card-section>
-          <div class="text-h6">{{ modoEdicion ? 'Modificación de certificado' : 'Nuevo certificado' }}</div>
-        </q-card-section>
+      <q-card class="certificado-dialog column no-wrap relative-position" style="min-width: 650px; max-width: 650px;">
 
-        <q-card-section class="q-pt-none">
-          <q-form ref="formRef" @submit="guardarCertificado" class="q-gutter-md">
-            <!-- Nombre, apellidos y Número de contrato (tercios iguales) -->
-            <div class="row q-col-gutter-sm items-start">
-              <div class="col">
-                <q-input
-                  ref="nombreTitularRef"
-                  v-model="formulario.nombreTitular"
-                  label="Nombre"
-                  outlined
-                  dense
-                  :rules="[val => !!val || 'El nombre es requerido']"
-                  lazy-rules
-                  stack-label
-                  autofocus
-                />
-              </div>
-              <div class="col">
-                <q-input
-                  ref="apellidosTitularRef"
-                  v-model="formulario.apellidosTitular"
-                  label="Apellidos"
-                  outlined
-                  dense
-                  :rules="[val => !!val || 'Los apellidos son requeridos']"
-                  lazy-rules
-                  stack-label
-                />
-              </div>
-              <div class="col">
-                <q-input
-                  ref="numeroContratoRef"
-                  v-model="formulario.numeroContrato"
-                  label="Número de contrato"
-                  outlined
-                  dense
-                  stack-label
-                  mask="##########"
-                  maxlength="10"
-                  :loading="verificandoContrato"
-                  :rules="[
-                    val => !!val || 'El número de contrato es requerido',
-                    val => /^\d{10}$/.test(String(val || '').trim()) || 'Debe tener exactamente 10 dígitos numéricos',
-                    val => !errorContratoDuplicado || 'Este número de contrato ya existe'
-                  ]"
-                  lazy-rules
-                  hint="Escriba el número de contrato a 10 dígitos"
-                  @update:model-value="verificarContratoDuplicado"
-                />
-              </div>
-            </div>
+        <div class="row no-wrap col certificado-dialog__body">
+          <div class="col column no-wrap certificado-dialog__main">
 
-            <!-- Fecha expedición y Años vigencia -->
-            <div class="row q-gutter-md">
-              <div class="col">
-                <q-input
-                  ref="fechaExpedicionRef"
-                  v-model="formulario.fechaExpedicion"
-                  label="Fecha expedición"
-                  type="date"
-                  outlined
-                  dense
-                  :rules="[val => !!val || 'La fecha de expedición es requerida']"
-                  lazy-rules
-                  readonly
-                  @update:model-value="calcularFechas"
-                />
+            <q-bar class="certificado-dialog__header">
+              <q-icon name="assignment" size="sm" class="q-mr-sm" />
+              <div class="text-subtitle1 text-weight-bold">
+                {{ modoEdicion ? 'Modificación de certificado' : 'Nuevo certificado' }}
               </div>
-              <div class="col">
-                <q-select
-                  ref="aniosVigenciaRef"
-                  v-model="formulario.aniosVigencia"
-                  :options="opcionesAnios"
-                  label="Años vigencia"
-                  outlined
-                  dense
-                  :rules="[val => val !== null && val !== undefined && val !== '' || 'Los años de vigencia son requeridos']"
-                  lazy-rules
-                  emit-value
-                  map-options
-                  @update:model-value="calcularFechas"
-                >
-                  <template v-slot:option="scope">
-                    <q-item
-                      v-bind="scope.itemProps"
-                      class="bg-blue-grey-2 text-bold"
-                    >
-                      <q-item-section>
-                        <q-item-label class="text-brown-9">{{ scope.opt.label }}</q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                </q-select>
-              </div>
-            </div>
+              <q-space />
+              <q-btn dense flat icon="close" @click="cerrarDialog" />
+            </q-bar>
 
-            <!-- Vigente desde y Vigente hasta (calculados) -->
-            <div class="row q-gutter-md">
-              <div class="col">
-                <q-input
-                  v-model="formulario.vigenteDesde"
-                  label="Vigente desde"
-                  type="date"
-                  outlined
-                  dense
-                  readonly
-                />
-              </div>
-              <div class="col">
-                <q-input
-                  v-model="formulario.vigenteHasta"
-                  label="Vigente hasta"
-                  type="date"
-                  outlined
-                  dense
-                  readonly
-                />
-              </div>
-            </div>
-
-            <!-- Tipo de Vehículo, Marca y Submarca -->
-            <div class="row q-gutter-md">
-              <div class="col">
-                <q-select
-                  ref="tipoVehiculoRef"
-                  v-model="formulario.tipoVehiculo"
-                  :options="opcionesTipoVehiculo"
-                  label="Tipo de Vehículo"
-                  outlined
-                  dense
-                  :rules="[val => !!val || 'El tipo de vehículo es requerido']"
-                  lazy-rules
-                  emit-value
-                  map-options
-                >
-                  <template v-slot:option="scope">
-                    <q-item
-                      v-bind="scope.itemProps"
-                      class="bg-blue-grey-2 text-bold"
-                    >
-                      <q-item-section>
-                        <q-item-label class="text-brown-9">{{ scope.opt.label }}</q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                  <template v-slot:after>
-                    <q-btn
-                      v-if="formulario.tipoVehiculo === 'SE'"
-                      round
+            <q-card-section class="col scroll q-pa-md">
+              <q-form ref="formRef" @submit="guardarCertificado" id="formCertificado"  class="q-gutter-md">
+                <!-- Nombre, apellidos y Número de contrato (tercios iguales) -->
+                <div class="row q-gutter-md">
+                  <div class="col">
+                    <q-input
+                      ref="nombreTitularRef"
+                      v-model="formulario.nombreTitular"
+                      label="Nombre"
+                      outlined
                       dense
-                      flat
-                      icon="directions_car"
-                      color="primary"
-                      @click.stop="abrirBusquedaVehiculo"
-                    >
-                      <q-tooltip>Buscar vehículo</q-tooltip>
-                    </q-btn>
-                  </template>
-                </q-select>
-              </div>
-              <div class="col">
-                <!-- Seminuevo: Marca como q-input -->
-                <q-input
-                  v-if="formulario.tipoVehiculo === 'SE'"
-                  ref="marcaRef"
-                  v-model="formulario.marca"
-                  label="Marca"
-                  outlined
-                  dense
-                  readonly
-                  :rules="[val => !!val || 'La marca es requerida']"
-                  lazy-rules
-                />
-                <!-- Nuevo: Marca como q-select -->
-                <q-select
-                  v-else-if="formulario.tipoVehiculo === 'NU'"
-                  ref="marcaRef"
-                  v-model="formulario.marca"
-                  :options="opcionesMarcas"
-                  label="Marca"
-                  outlined
-                  dense
-                  :rules="[val => !!val || 'La marca es requerida']"
-                  lazy-rules
-                  emit-value
-                  map-options
-                >
-                  <template v-slot:option="scope">
-                    <q-item
-                      v-bind="scope.itemProps"
-                      class="bg-blue-grey-2 text-bold"
-                    >
-                      <q-item-section>
-                        <q-item-label class="text-brown-9">{{ scope.opt.label }}</q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                </q-select>
-              </div>
-              <div class="col">
-                <!-- Seminuevo: Submarca / Versión como q-input -->
-                <q-input
-                  v-if="formulario.tipoVehiculo === 'SE'"
-                  ref="submarcaRef"
-                  v-model="formulario.submarca"
-                  label="Submarca / Versión"
-                  outlined
-                  dense
-                  readonly
-                  :rules="[val => !!val || 'La submarca es requerida']"
-                  lazy-rules
-                />
-                <!-- Nuevo: Submarca como q-select -->
-                <q-select
-                  v-else-if="formulario.tipoVehiculo === 'NU'"
-                  ref="submarcaRef"
-                  v-model="formulario.submarca"
-                  :options="opcionesSubmarcasFiltradas"
-                  label="Submarca / Versión"
-                  outlined
-                  dense
-                  :rules="[val => !!val || 'La submarca es requerida']"
-                  lazy-rules
-                  use-input
-                  input-debounce="0"
-                  @filter="filtrarSubmarcas"
-                  @new-value="crearNuevaSubmarca"
-                  new-value-mode="add-unique"
-                  fill-input
-                  hide-selected
-                  emit-value
-                  map-options
-                  :disable="!formulario.marca"
-                >
-                  <template v-slot:option="scope">
-                    <q-item
-                      v-bind="scope.itemProps"
-                      class="bg-blue-grey-2 text-bold"
-                    >
-                      <q-item-section>
-                        <q-item-label class="text-brown-9">{{ scope.opt.label }}</q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                  <template v-slot:no-option>
-                    <q-item>
-                      <q-item-section class="text-grey">
-                        Escriba para buscar o presione Enter para agregar
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                </q-select>
-              </div>
-            </div>
+                      :rules="[val => !!val || 'El nombre es requerido']"
+                      lazy-rules
+                      stack-label
+                      autofocus
+                    />
+                  </div>
+                  <div class="col">
+                    <q-input
+                      ref="apellidosTitularRef"
+                      v-model="formulario.apellidosTitular"
+                      label="Apellidos"
+                      outlined
+                      dense
+                      :rules="[val => !!val || 'Los apellidos son requeridos']"
+                      lazy-rules
+                      stack-label
+                    />
+                  </div>
+                  <div class="col">
+                    <q-input
+                      ref="numeroContratoRef"
+                      v-model="formulario.numeroContrato"
+                      label="Número de contrato"
+                      outlined
+                      dense
+                      stack-label
+                      mask="##########"
+                      maxlength="10"
+                      :loading="verificandoContrato"
+                      :rules="[
+                        val => !!val || 'El número de contrato es requerido',
+                        val => /^\d{10}$/.test(String(val || '').trim()) || 'Debe tener exactamente 10 dígitos numéricos',
+                        val => !errorContratoDuplicado || 'Este número de contrato ya existe'
+                      ]"
+                      lazy-rules
+                      hint="Escriba el número de contrato a 10 dígitos"
+                      @update:model-value="verificarContratoDuplicado"
+                    />
+                  </div>
+                </div>
+                <!-- Selección coberturas-->
+              <div class="row q-gutter-md">
+                <div class="col">
+                <q-table
+                    :rows="coberturasAgregadas"
+                    :columns="coberturaColumns"
+                    row-key="cobertura"
+                    dense
+                    flat
+                    bordered
+                    hide-pagination
+                    class=" full-width ticket-cobertura-qtable"
+                    :rows-per-page-options="[0]"
+            
+                  >
+                    <template v-slot:header-cell-acciones="props">
+                      <q-th :props="props">
+                        <q-btn-dropdown
+                          ref="coberturaDropdownRef"
+                          label="AGREGAR"
+                          class="ticket-btn--add-cobertura"
+                          dense
+                          size="sm"
+                          no-caps
+                          unelevated
+                          dropdown-icon="expand_more"
+                          content-class="ticket-cobertura-dropdown"
+                          :loading="coberturasCatalogoLoading"
+                          @before-show="cargarCoberturas"
+                          table-class="ticket-cobertura-qtable__zebra"
+                        >
+                          <q-list class="ticket-cobertura-dropdown__list">
+                            <q-item-label header class="ticket-cobertura-dropdown__header">
+                              <q-icon name="verified_user" class="q-mr-sm" />
+                              Selecciona una cobertura
+                            </q-item-label>
 
-            <!-- Versión (ancho completo, solo Seminuevo) -->
-            <div v-if="formulario.tipoVehiculo === 'SE'" class="row q-gutter-md">
-              <div class="col-12">
-                <q-input
-                  v-model="formulario.version"
-                  label="Versión"
-                  outlined
-                  dense
-                  readonly
-                />
-              </div>
-            </div>
+                            <q-item
+                              v-for="(item, index) in coberturasCatalogoDisponibles"
+                              :key="item.value ?? `cobertura-${index}`"
+                              dense
+                              clickable
+                              v-close-popup
+                              class="ticket-cobertura-dropdown__item"
+                              @click="agregarCobertura(item)"
+                            >
+                              <q-item-section>
+                                <q-item-label class="ticket-cobertura-dropdown__label">{{ item.label }}</q-item-label>
+                                <q-item-label caption class="ticket-cobertura-dropdown__caption">Cobertura #{{ item.value }}</q-item-label>
+                              </q-item-section>
 
-            <!-- Modelo y No. de serie -->
-            <div class="row q-gutter-md">
-              <div class="col">
-                <q-input
-                  ref="modeloRef"
-                  v-model="formulario.modelo"
-                  label="Modelo"
-                  outlined
-                  dense
-                  :readonly="formulario.tipoVehiculo !== 'NU'"
-                  :mask="formulario.tipoVehiculo === 'NU' ? '####' : undefined"
-                  inputmode="numeric"
-                  :rules="reglasModelo"
-                  lazy-rules
-                />
-              </div>
-              <div class="col">
-                <q-input
-                  ref="numeroSerieRef"
-                  v-model="formulario.numeroSerie"
-                  label="No. de serie"
-                  outlined
-                  dense
-                  :rules="[val => !!val || 'El número de serie es requerido']"
-                  lazy-rules
-                />
-              </div>
-            </div>
+                              <q-item-section side>
+                                <q-icon name="add_circle" class="ticket-cobertura-dropdown__add-icon" />
+                              </q-item-section>
+                            </q-item>
 
-            <!-- Botones de acción -->
-            <q-card-actions align="right" class="q-pt-md">
-              <q-btn
-                flat
-                label="Cancelar"
-                color="negative"
-                dense
-                push
-                @click="cerrarDialog"
-              />
-              <q-btn
-                type="submit"
-                :label="modoEdicion ? 'Actualizar' : 'Guardar'"
-                :style="{ backgroundColor: '#f44336', color: 'white' }"
-                dense
-                push
-                :loading="guardando"
-                :disable="modoEdicion && certificadoProcesado"
-              />
-            </q-card-actions>
-          </q-form>
-        </q-card-section>
+                            <q-item
+                              v-if="!coberturasCatalogoLoading && coberturasCatalogoDisponibles.length === 0"
+                              dense
+                              class="ticket-cobertura-dropdown__empty"
+                              disable
+                            >
+                              <q-item-section avatar>
+                                <q-avatar class="ticket-cobertura-dropdown__avatar ticket-cobertura-dropdown__avatar--empty" size="38px">
+                                  <q-icon name="info" size="20px" />
+                                </q-avatar>
+                              </q-item-section>
+                              <q-item-section>
+                                <q-item-label class="text-grey-7">
+                                  {{
+                                    opcionesCoberturas.length === 0
+                                      ? 'Sin coberturas disponibles'
+                                      : 'Todas las coberturas agregadas'
+                                  }}
+                                </q-item-label>
+                              </q-item-section>
+                            </q-item>
+                          </q-list>
+                        </q-btn-dropdown>
+                      </q-th>
+                    </template>
+
+                    <template v-slot:body-cell-acciones="props">
+                      <q-td :props="props" class="text-center">
+                        <q-btn
+                          flat
+                          dense
+                          round
+                          size="sm"
+                          icon="delete"
+                          color="negative"
+                          @click="eliminarCobertura(props.rowIndex)"
+                        />
+                      </q-td>
+                    </template>
+                    <template v-slot:body-cell-primaNeta="props">
+                      <q-td :props="props">
+                        {{ Number(props.row.primaNeta || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                      </q-td>
+                    </template>
+
+                    <template v-slot:body-cell-primaTotal="props">
+                      <q-td :props="props">
+                        {{ Number(props.row.primaTotal || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                      </q-td>
+                    </template>
+                     <template v-slot:bottom-row>
+                      <q-tr v-if="coberturasAgregadas.length > 0" class="ticket-cobertura-qtable__total-row">
+                        <q-td class="text-weight-bold">Total Anual</q-td>
+                      <q-td class="text-weight-bold text-right">
+                        <q-icon name="attach_money" size="16px" class="q-mr-xs" />{{ primaNetaTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                      </q-td>
+                      <q-td class="text-weight-bold text-right">
+                        <q-icon name="attach_money" size="16px" class="q-mr-xs" />{{ primaTotalTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                      </q-td>
+                        <q-td></q-td>
+                      </q-tr>
+                     <q-tr v-if="coberturasAgregadas.length > 0" class="ticket-cobertura-qtable__total-anios-row">
+                        <q-td class="text-weight-bold">Total Vigencia ({{ formulario.aniosVigencia }} {{ formulario.aniosVigencia === 1 ? 'año' : 'años' }})</q-td>
+                        <q-td class="text-weight-bold text-right">
+                          <q-icon name="attach_money" size="14px" class="q-mr-xs" />{{ primaNetaTotalPorVigencia.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                        </q-td>
+                        <q-td class="text-weight-bold text-right">
+                          <q-icon name="attach_money" size="14px" class="q-mr-xs" />{{ primaTotalTotalVigencia.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                        </q-td>
+                        <q-td></q-td>
+                      </q-tr>
+                    </template>
+
+                    <template v-slot:no-data>
+                      <div class="full-width text-center text-grey">
+                        Sin coberturas agregadas
+                      </div>
+                    </template>
+                  </q-table>
+                  </div>
+                </div>
+
+                <!-- Fecha expedición y Años vigencia -->
+                <div class="row q-gutter-md">
+                  <div class="col">
+                    <q-input
+                      ref="fechaExpedicionRef"
+                      v-model="formulario.fechaExpedicion"
+                      label="Fecha expedición"
+                      type="date"
+                      outlined
+                      dense
+                      :rules="[val => !!val || 'La fecha de expedición es requerida']"
+                      lazy-rules
+                      readonly
+                      @update:model-value="calcularFechas"
+                    />
+                  </div>
+                  <div class="col">
+                    <q-select
+                      ref="aniosVigenciaRef"
+                      v-model="formulario.aniosVigencia"
+                      :options="opcionesAnios"
+                      label="Años vigencia"
+                      outlined
+                      dense
+                      :rules="[val => val !== null && val !== undefined && val !== '' || 'Los años de vigencia son requeridos']"
+                      lazy-rules
+                      emit-value
+                      map-options
+                      @update:model-value="calcularFechas"
+                    >
+                      <template v-slot:option="scope">
+                        <q-item
+                          v-bind="scope.itemProps"
+                          class="bg-blue-grey-2 text-bold"
+                        >
+                          <q-item-section>
+                            <q-item-label class="text-brown-9">{{ scope.opt.label }}</q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
+                  </div>
+                </div>
+
+                <!-- Vigente desde y Vigente hasta (calculados) -->
+                <div class="row q-gutter-md">
+                  <div class="col">
+                    <q-input
+                      v-model="formulario.vigenteDesde"
+                      label="Vigente desde"
+                      type="date"
+                      outlined
+                      dense
+                      readonly
+                    />
+                  </div>
+                  <div class="col">
+                    <q-input
+                      v-model="formulario.vigenteHasta"
+                      label="Vigente hasta"
+                      type="date"
+                      outlined
+                      dense
+                      readonly
+                    />
+                  </div>
+                </div>
+
+                <!-- Tipo de Vehículo, Marca y Submarca -->
+                <div class="row q-gutter-md">
+                  <div class="col">
+                    <q-select
+                      ref="tipoVehiculoRef"
+                      v-model="formulario.tipoVehiculo"
+                      :options="opcionesTipoVehiculo"
+                      label="Tipo de Vehículo"
+                      outlined
+                      dense
+                      :rules="[val => !!val || 'El tipo de vehículo es requerido']"
+                      lazy-rules
+                      emit-value
+                      map-options
+                    >
+                      <template v-slot:option="scope">
+                        <q-item
+                          v-bind="scope.itemProps"
+                          class="bg-blue-grey-2 text-bold"
+                        >
+                          <q-item-section>
+                            <q-item-label class="text-brown-9">{{ scope.opt.label }}</q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                      <template v-slot:after>
+                        <q-btn
+                          v-if="formulario.tipoVehiculo === 'SE'"
+                          round
+                          dense
+                          flat
+                          icon="directions_car"
+                          color="primary"
+                          @click.stop="abrirBusquedaVehiculo"
+                        >
+                          <q-tooltip>Buscar vehículo</q-tooltip>
+                        </q-btn>
+                      </template>
+                    </q-select>
+                  </div>
+                  <div class="col">
+                    <!-- Seminuevo: Marca como q-input -->
+                    <q-input
+                      v-if="formulario.tipoVehiculo === 'SE'"
+                      ref="marcaRef"
+                      v-model="formulario.marca"
+                      label="Marca"
+                      outlined
+                      dense
+                      readonly
+                      :rules="[val => !!val || 'La marca es requerida']"
+                      lazy-rules
+                    />
+                    <!-- Nuevo: Marca como q-select -->
+                    <q-select
+                      v-else-if="formulario.tipoVehiculo === 'NU'"
+                      ref="marcaRef"
+                      v-model="formulario.marca"
+                      :options="opcionesMarcas"
+                      label="Marca"
+                      outlined
+                      dense
+                      :rules="[val => !!val || 'La marca es requerida']"
+                      lazy-rules
+                      emit-value
+                      map-options
+                    >
+                      <template v-slot:option="scope">
+                        <q-item
+                          v-bind="scope.itemProps"
+                          class="bg-blue-grey-2 text-bold"
+                        >
+                          <q-item-section>
+                            <q-item-label class="text-brown-9">{{ scope.opt.label }}</q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
+                  </div>
+                  <div class="col">
+                    <!-- Seminuevo: Submarca / Versión como q-input -->
+                    <q-input
+                      v-if="formulario.tipoVehiculo === 'SE'"
+                      ref="submarcaRef"
+                      v-model="formulario.submarca"
+                      label="Submarca / Versión"
+                      outlined
+                      dense
+                      readonly
+                      :rules="[val => !!val || 'La submarca es requerida']"
+                      lazy-rules
+                    />
+                    <!-- Nuevo: Submarca como q-select -->
+                    <q-select
+                      v-else-if="formulario.tipoVehiculo === 'NU'"
+                      ref="submarcaRef"
+                      v-model="formulario.submarca"
+                      :options="opcionesSubmarcasFiltradas"
+                      label="Submarca / Versión"
+                      outlined
+                      dense
+                      :rules="[val => !!val || 'La submarca es requerida']"
+                      lazy-rules
+                      use-input
+                      input-debounce="0"
+                      @filter="filtrarSubmarcas"
+                      @new-value="crearNuevaSubmarca"
+                      new-value-mode="add-unique"
+                      fill-input
+                      hide-selected
+                      emit-value
+                      map-options
+                      :disable="!formulario.marca"
+                    >
+                      <template v-slot:option="scope">
+                        <q-item
+                          v-bind="scope.itemProps"
+                          class="bg-blue-grey-2 text-bold"
+                        >
+                          <q-item-section>
+                            <q-item-label class="text-brown-9">{{ scope.opt.label }}</q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                      <template v-slot:no-option>
+                        <q-item>
+                          <q-item-section class="text-grey">
+                            Escriba para buscar o presione Enter para agregar
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
+                  </div>
+                </div>
+
+                <!-- Versión (ancho completo, solo Seminuevo) -->
+                <div v-if="formulario.tipoVehiculo === 'SE'" class="row q-gutter-md">
+                  <div class="col-12">
+                    <q-input
+                      v-model="formulario.version"
+                      label="Versión"
+                      outlined
+                      dense
+                      readonly
+                    />
+                  </div>
+                </div>
+
+                <!-- Modelo y No. de serie -->
+                <div class="row q-gutter-md">
+                  <div class="col">
+                    <q-input
+                      ref="modeloRef"
+                      v-model="formulario.modelo"
+                      label="Modelo"
+                      outlined
+                      dense
+                      :readonly="formulario.tipoVehiculo !== 'NU'"
+                      :mask="formulario.tipoVehiculo === 'NU' ? '####' : undefined"
+                      inputmode="numeric"
+                      :rules="reglasModelo"
+                      lazy-rules
+                    />
+                  </div>
+                  <div class="col">
+                    <q-input
+                      ref="numeroSerieRef"
+                      v-model="formulario.numeroSerie"
+                      label="No. de serie"
+                      outlined
+                      dense
+                      :rules="[val => !!val || 'El número de serie es requerido']"
+                      lazy-rules
+                    />
+                  </div>
+                </div>
+              </q-form>
+            </q-card-section>
+             <!-- Botones de acción -->
+              <q-card-actions align="right" class=" certificado-dialog__actions q-pt-md">
+                <q-btn
+                  flat
+                  label="Cancelar"
+                  color="negative"
+                  dense
+                  push
+                  @click="cerrarDialog"
+                />
+                <q-btn
+                  type="submit"
+                  form="formCertificado"
+                  :label="modoEdicion ? 'Actualizar' : 'Guardar'"
+                  :style="{ backgroundColor: '#f44336', color: 'white' }"
+                  dense
+                  push
+                  :loading="guardando"
+                  :disable="modoEdicion && certificadoProcesado"
+                />
+              </q-card-actions>
+          </div>
+        </div>
+
       </q-card>
     </q-dialog>
+    <!--                    --> 
 
     <!-- Dialog para editar número de contrato (solo admin) -->
     <q-dialog v-model="dialogEditarContratoOpen">
@@ -894,6 +1044,7 @@ import { useAuthStore } from 'src/stores/auth'
 import { authService } from 'src/services/authService'
 import { certificadoService } from 'src/services/certificadoService'
 import { catalogoVehiculosService } from 'src/services/catalogoVehiculosService'
+import { catalogoCoberturasService } from 'src/services/catalogoCoberturasService'
 import { useQuasar, date } from 'quasar'
 
 const router = useRouter()
@@ -1292,11 +1443,22 @@ const submarcaRef = ref(null)
 const modeloRef = ref(null)
 const numeroSerieRef = ref(null)
 
+const opcionesCoberturas = ref([])
+const coberturasAgregadas = ref([])
+const coberturasCatalogoLoading = ref(false)
+const coberturaDropdownRef = ref(null)
+
+const coberturasCatalogoDisponibles = computed(() => {
+  const agregados = new Set(coberturasAgregadas.value.map((c) => c.cobertura))
+  return opcionesCoberturas.value.filter((item) => !agregados.has(item.value))
+})
+
 // Formulario para nuevo certificado
 const formulario = ref({
   nombreTitular: '',
   apellidosTitular: '',
   numeroContrato: '',
+  cobertura: null,
   fechaExpedicion: '',
   aniosVigencia: null,
   vigenteDesde: '',
@@ -1310,7 +1472,10 @@ const formulario = ref({
   version: '',
   usuario: '',
   creadoPor: '',
-  estado: 'Solicitado'
+  estado: 'Solicitado',
+  Ampara: '',
+  primaNeta: 0,
+  primaTotal: 0
 })
 
 function construirTitularDesdeForm(f) {
@@ -1347,7 +1512,12 @@ function descomponerTitularParaForm(row) {
 
 // Opciones para años de vigencia
 const opcionesAnios = [
-  { label: '1', value: 1 }
+  { label: '1', value: 1 },
+  { label: '2', value: 2 },
+  { label: '3', value: 3 },
+  { label: '4', value: 4 },
+  { label: '5', value: 5 },
+  { label: '6', value: 6 }
 ]
 
 // Opciones para tipo de vehículo
@@ -1741,6 +1911,13 @@ const columns = [
     sortable: true
   },
   {
+    name: 'aniosVigencia',
+    label: 'Años Vigencia',
+    align: 'left',
+    field: row => row.aniosVigencia,
+    sortable: true
+  },
+  {
     name: 'tipoVehiculo',
     label: 'Tipo Vehículo',
     align: 'left',
@@ -1781,6 +1958,38 @@ const columns = [
     sortable: true
   },
   {
+    name: 'Ampara',
+    label: 'Ampara',
+    align: 'left',
+    field: row => row.ampara,
+    format: val => `${val}`,
+    sortable: true
+  },
+  {
+    name: 'PrimaNeta',
+    label: 'Prima Neta',
+    align: 'left',
+    field: row => row.primaNeta,
+    format: val => `${val}`,
+    sortable: true
+  },
+  {
+    name: 'PrimaTotal',
+    label: 'Prima Total',
+    align: 'left',
+    field: row => row.primaTotal,
+    format: val => `${val}`,
+    sortable: true
+  },
+  {
+    name: 'status',
+    label: 'Estatus',
+    align: 'left',
+    field: row => row.polizaStatus,
+    format: val => `${val}`,
+    sortable: true
+  },
+  {
     name: 'creadoPor',
     label: 'Creado Por',
     align: 'left',
@@ -1795,6 +2004,13 @@ const columns = [
     field: 'acciones',
     sortable: false
   }
+]
+
+const coberturaColumns = [
+  { name: 'coberturaLabel', label: 'Cobertura', field: 'coberturaLabel', align: 'left' },
+  { name: 'primaNeta', label: 'Prima Neta', field: 'primaNeta', align: 'right' },
+  { name: 'primaTotal', label: 'Prima Total', field: 'primaTotal', align: 'right' },
+  { name: 'acciones', label: '', field: 'acciones', align: 'center' }
 ]
 
 // Función para obtener el color del chip según polizaStatusId
@@ -1935,6 +2151,74 @@ const abrirDialog = () => {
   dialogOpen.value = true
 }
 
+async function cargarCoberturas() {
+  if (opcionesCoberturas.value.length > 0) return
+
+  coberturasCatalogoLoading.value = true
+  try {
+    const data = await catalogoCoberturasService.obtenerCoberturas()
+
+    opcionesCoberturas.value = data.map(item => ({
+      label: item.nombre,
+      value: item.uid,
+      primaNeta: item.primaNeta,
+      primaTotal: item.primaTotal
+    }))
+  } catch (error) {
+    console.error(error)
+    opcionesCoberturas.value = []
+    $q.notify({
+      color: 'red',
+      message: error?.message || 'Error al cargar el catálogo de coberturas',
+      position: 'top',
+    })
+  } finally {
+    coberturasCatalogoLoading.value = false
+  }
+}
+function agregarCobertura(item) {
+  const yaExiste = coberturasAgregadas.value.some(c => c.cobertura === item.value)
+  if (yaExiste) {
+    Notify.create({ type: 'warning', message: 'Esa cobertura ya fue agregada' })
+    return
+  }
+
+  coberturasAgregadas.value.push({
+    cobertura: item.value,
+    coberturaLabel: item.label,
+    primaNeta: item.primaNeta,
+    primaTotal: item.primaTotal
+  })
+  coberturaDropdownRef.value?.hide?.()
+}
+
+function eliminarCobertura(index) {
+  coberturasAgregadas.value.splice(index, 1)
+}
+const primaNetaTotal = computed(() => {
+  return coberturasAgregadas.value.reduce((sum, item) => sum + Number(item.primaNeta || 0), 0)
+})
+const primaTotalTotal = computed(() => {
+  return coberturasAgregadas.value.reduce((sum, item) => sum + Number(item.primaTotal || 0), 0)
+})
+const primaNetaTotalPorVigencia = computed(() => {
+  const anios = Number(formulario.value.aniosVigencia) || 1
+  return primaNetaTotal.value * anios
+})
+const primaTotalTotalVigencia = computed(() => {
+  const anios = Number(formulario.value.aniosVigencia) || 1
+  return primaTotalTotal.value * anios
+})
+watch(
+  [primaNetaTotalPorVigencia, primaTotalTotalVigencia, coberturasAgregadas],
+  ([netaAnios, totalAnios]) => {
+    formulario.value.Ampara = coberturasAgregadas.value.map(c => c.coberturaLabel).join(', ')
+    formulario.value.primaNeta = netaAnios
+    formulario.value.primaTotal = totalAnios
+  },
+  { deep: true }
+)
+
 // Función para editar un certificado (abrir diálogo en modo edición)
 const editarCertificado = async (row) => {
   modoEdicion.value = true
@@ -1957,7 +2241,7 @@ const editarCertificado = async (row) => {
     apellidosTitular: apellidosEd,
     numeroContrato: row.numeroContrato || '',
     fechaExpedicion: row.fechaExpedicion ? formatDateForInput(row.fechaExpedicion) : '',
-    aniosVigencia: 1,
+    aniosVigencia: calcularAniosVigencia(row.vigenteDesde, row.vigenteHasta),
     vigenteDesde: row.vigenteDesde ? formatDateForInput(row.vigenteDesde) : '',
     vigenteHasta: row.vigenteHasta ? formatDateForInput(row.vigenteHasta) : '',
     tipoVehiculo: row.tipoVehiculo || '',
@@ -1969,8 +2253,18 @@ const editarCertificado = async (row) => {
     version: row.version || row.Version || '',
     usuario: row.usuario || '',
     creadoPor: row.creadoPor || '',
-    estado: row.estado || 'Solicitado'
+    estado: row.estado || 'Solicitado',
+    primaNeta: row.primaNeta ?? null,
+    primaTotal: row.primaTotal ?? null,
+    ampara: row.ampara || ''
   }
+
+  coberturasAgregadas.value = (row.coberturas || []).map(c => ({
+  cobertura: c.uid,
+  coberturaLabel: c.nombre,
+  primaNeta: c.primaNeta,
+  primaTotal: c.primaTotal
+}))
 
   nextTick(() => {
     cargandoEdicion.value = false
@@ -2007,11 +2301,7 @@ const calcularAniosVigencia = (vigenteDesde, vigenteHasta) => {
   const diffTime = Math.abs(hasta - desde)
   const diffYears = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 365))
   
-  // Redondear al año más cercano (1, 2, 3 o 4)
-  if (diffYears <= 1) return 1
-  if (diffYears <= 2) return 2
-  if (diffYears <= 3) return 3
-  return 4
+  return diffYears < 1 ? 1 : diffYears
 }
 
 // Función para verificar si el contrato está duplicado
@@ -2101,6 +2391,7 @@ const resetearFormulario = (prellenarFechaHoy = false) => {
   // Limpiar estados de validación de contrato
   errorContratoDuplicado.value = false
   verificandoContrato.value = false
+  coberturasAgregadas.value = []
 }
 
 // Función para validar todos los campos
@@ -2160,6 +2451,15 @@ const validarCampos = () => {
 
 // Función para guardar o actualizar el certificado
 const guardarCertificado = async () => {
+  if (!coberturasAgregadas.value || coberturasAgregadas.value.length === 0) {
+    $q.notify({
+      type: 'negative',
+      message: 'Debe agregar al menos una cobertura',
+      position: 'top',
+      timeout: 5000
+    })
+    return
+  }
   // Validar el formulario usando la ref del form
   const valid = await formRef.value?.validate()
   
@@ -2208,6 +2508,7 @@ const guardarCertificado = async () => {
     } else {
       await enviarCertificado()
     }
+    await cargarCertificados()
   })
 }
 
@@ -2261,7 +2562,10 @@ const enviarCertificado = async () => {
       submarca: formulario.value.submarca,
       modelo: formulario.value.modelo,
       serie: formulario.value.numeroSerie,
-      version: formulario.value.version
+      version: formulario.value.version,
+      Ampara: formulario.value.Ampara,
+      primaNeta: formulario.value.primaNeta,
+      primaTotal: formulario.value.primaTotal,
     }
     
     console.log('Payload crea-certificado:', JSON.stringify(payload))
@@ -2379,7 +2683,10 @@ const actualizarCertificado = async () => {
       submarca: formulario.value.submarca,
       modelo: formulario.value.modelo,
       serie: formulario.value.numeroSerie,
-      version: formulario.value.tipoVehiculo === 'SE' ? (formulario.value.version || '') : ''
+      version: formulario.value.tipoVehiculo === 'SE' ? (formulario.value.version || '') : '',
+      Ampara: formulario.value.Ampara,
+      primaNeta: formulario.value.primaNeta,
+      primaTotal: formulario.value.primaTotal,
     }
     
     console.log('Payload modificar-certificado:', JSON.stringify(payload))
@@ -2406,6 +2713,9 @@ const actualizarCertificado = async () => {
           submarca: formulario.value.submarca,
           modelo: formulario.value.modelo,
           serie: formulario.value.numeroSerie,
+          ampara: formulario.value.Ampara,
+          primaNeta: formulario.value.primaNeta,
+          primaTotal: formulario.value.primaTotal,
           // Si la respuesta incluye un certificado actualizado, usar esos datos
           ...(response.certificado || {}),
           // Preservar versión si el backend la devuelve vacía/no la devuelve
@@ -2793,6 +3103,43 @@ onMounted(async () => {
 .certificado-dialog :deep(.q-field--focused .q-icon) {
   color: #757575 !important;
 }
+.certificado-dialog__actions {
+  flex-shrink: 0;
+  border-top: 1px solid #e0e0e0;
+}
+.certificado-dialog {
+  max-height: 90vh;
+}
+
+.certificado-dialog__body {
+  min-height: 0;
+  flex: 1;
+}
+
+.certificado-dialog__main {
+  min-height: 0;
+}
+
+.certificado-dialog__header {
+  background: #1a1a1a;
+  color: #fff;
+  flex-shrink: 0;
+  padding: 12px 16px;
+  height: auto;
+}
+
+.certificado-dialog__header-sub {
+  color: #9e9e9e;
+}
+
+.ticket-btn--add-cobertura {
+  background: #1fef37a8 !important;
+  color: #ffffff !important;
+  padding: 2px 10px !important;
+  font-size: 8px !important;
+    margin-left: auto;
+  display: block;
+}
 
 /* Estilos para el chip de Status */
 .status-chip {
@@ -2806,4 +3153,87 @@ onMounted(async () => {
     padding: 8px;
   }
 }
+/* Menú teletransportado por q-btn-dropdown — sin scoped */
+.ticket-cobertura-dropdown {
+  min-width: 340px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #90caf9;
+  box-shadow: 0 10px 28px rgba(13, 71, 161, 0.18);
+}
+
+.ticket-cobertura-dropdown__list {
+  padding: 0;
+}
+
+.ticket-cobertura-dropdown__header {
+  background: linear-gradient(135deg, #0d47a1 0%, #1565c0 55%, #1976d2 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  padding: 10px 14px;
+  margin: 0;
+}
+
+.ticket-cobertura-dropdown__item {
+  padding: 10px 12px;
+  border-left: 3px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ticket-cobertura-dropdown__item:hover {
+  background: linear-gradient(90deg, #e3f2fd 0%, #e8f4fd 100%);
+  border-left-color: #1565c0;
+}
+
+.ticket-cobertura-dropdown__item + .ticket-cobertura-dropdown__item {
+  border-top: 1px solid #e3f2fd;
+}
+
+
+
+.ticket-cobertura-dropdown__label {
+  font-weight: 600;
+  color: #0d47a1;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.ticket-cobertura-dropdown__caption {
+  color: #1976d2;
+  font-size: 0.72rem;
+  margin-top: 2px;
+}
+
+.ticket-cobertura-dropdown__add-icon {
+  color: #1565c0;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.ticket-cobertura-dropdown__item:hover .ticket-cobertura-dropdown__add-icon {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+.ticket-cobertura-dropdown__empty {
+  padding: 12px;
+  background: #fafafa;
+}
+.ticket-cobertura-qtable :deep(thead tr th) {
+  background: #040708f9 !important;
+  color: #eceff1 !important;
+  font-weight: 600;
+}
+
+.ticket-cobertura-qtable :deep(thead tr th) {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+.ticket-cobertura-qtable :deep(tbody tr:nth-child(even)) {
+  background-color: #f5f5f5;
+}
+
 </style>
