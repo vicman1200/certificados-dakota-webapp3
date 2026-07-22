@@ -617,7 +617,7 @@
                       label="No. de serie"
                       outlined
                       dense
-                      :rules="[val => !!val || 'El número de serie es requerido']"
+                      :rules="[val => !!val || 'El número de serie es requerido', val => String(val || '').trim().length === 17 || 'Debe tener exactamente 17 caracteres']"
                       lazy-rules
                     />
                   </div>
@@ -1968,17 +1968,17 @@ const columns = [
   {
     name: 'PrimaNeta',
     label: 'Prima Neta',
-    align: 'left',
+    align: 'right',
     field: row => row.primaNeta,
-    format: val => `${val}`,
+    format: val => `$${Number(val || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
     sortable: true
   },
   {
     name: 'PrimaTotal',
     label: 'Prima Total',
-    align: 'left',
+    align: 'right',
     field: row => row.primaTotal,
-    format: val => `${val}`,
+    format: val => `$${Number(val || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
     sortable: true
   },
   {
