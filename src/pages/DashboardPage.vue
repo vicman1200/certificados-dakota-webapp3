@@ -2270,7 +2270,8 @@ const editarCertificado = async (row) => {
   cobertura: c.uid,
   coberturaLabel: c.nombre,
   primaNeta: c.primaNeta,
-  primaTotal: c.primaTotal
+  primaTotal: c.primaTotal,
+  codigo: c.codigo
 }))
 
   nextTick(() => {
@@ -2695,6 +2696,7 @@ const actualizarCertificado = async () => {
       Ampara: formulario.value.Ampara,
       primaNeta: formulario.value.primaNeta,
       primaTotal: formulario.value.primaTotal,
+      codigo: formulario.value.Codigo
     }
     
     console.log('Payload modificar-certificado:', JSON.stringify(payload))
@@ -2724,6 +2726,7 @@ const actualizarCertificado = async () => {
           ampara: formulario.value.Ampara,
           primaNeta: formulario.value.primaNeta,
           primaTotal: formulario.value.primaTotal,
+          codigo: formulario.value.Codigo,
           // Si la respuesta incluye un certificado actualizado, usar esos datos
           ...(response.certificado || {}),
           // Preservar versión si el backend la devuelve vacía/no la devuelve
