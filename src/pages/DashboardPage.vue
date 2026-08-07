@@ -1475,7 +1475,8 @@ const formulario = ref({
   estado: 'Solicitado',
   Ampara: '',
   primaNeta: 0,
-  primaTotal: 0
+  primaTotal: 0,
+  codigo: ''
 })
 
 function construirTitularDesdeForm(f) {
@@ -2162,7 +2163,8 @@ async function cargarCoberturas() {
       label: item.nombre,
       value: item.uid,
       primaNeta: item.primaNeta,
-      primaTotal: item.primaTotal
+      primaTotal: item.primaTotal,
+      codigo: item.codigo
     }))
   } catch (error) {
     console.error(error)
@@ -2187,7 +2189,8 @@ function agregarCobertura(item) {
     cobertura: item.value,
     coberturaLabel: item.label,
     primaNeta: item.primaNeta,
-    primaTotal: item.primaTotal
+    primaTotal: item.primaTotal,
+    codigo: item.codigo
   })
   coberturaDropdownRef.value?.hide?.()
 }
@@ -2212,9 +2215,13 @@ const primaTotalTotalVigencia = computed(() => {
 watch(
   [primaNetaTotalPorVigencia, primaTotalTotalVigencia, coberturasAgregadas],
   ([netaAnios, totalAnios]) => {
+
+    const coberturasOrdenadas = [...coberturasAgregadas.value].sort((a, b) => a.cobertura - b.cobertura)
+
     formulario.value.Ampara = coberturasAgregadas.value.map(c => c.coberturaLabel).join(', ')
     formulario.value.primaNeta = netaAnios
     formulario.value.primaTotal = totalAnios
+    formulario.value.Codigo = coberturasOrdenadas.map(c => c.codigo).join('+')
   },
   { deep: true }
 )
@@ -2566,6 +2573,7 @@ const enviarCertificado = async () => {
       Ampara: formulario.value.Ampara,
       primaNeta: formulario.value.primaNeta,
       primaTotal: formulario.value.primaTotal,
+      codigo: formulario.value.Codigo
     }
     
     console.log('Payload crea-certificado:', JSON.stringify(payload))
