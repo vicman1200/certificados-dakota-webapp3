@@ -9,7 +9,8 @@ const getBaseURL = () => {
     return 'https://localhost:7254/api'
   } else if (process.env.PROD) {
     // Producción: API en Azure
-    return 'https://certificados-dakota-api-dvffafgybmfabngw.mexicocentral-01.azurewebsites.net/api'
+    //return 'https://certificados-dakota-api-dvffafgybmfabngw.mexicocentral-01.azurewebsites.net/api'
+    return 'https://certificados-api.dakotamobility.com.mx/api'
   }
   // Fallback (por si acaso)
   return 'https://localhost:7254/api'
